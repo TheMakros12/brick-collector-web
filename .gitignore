@@ -1,0 +1,13 @@
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# Spring Boot / Java
+backend/target/
+backend/*.log
+backend/src/main/resources/application-local.properties
+
+# Frontend
+frontend/node_modules/
+.DS_Store
