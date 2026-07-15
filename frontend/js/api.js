@@ -14,6 +14,32 @@ const API = {
         { id: 'infinity-saga', name: 'The Infinity Saga', rebrickableId: 709 },
         { id: 'pokemon', name: 'Pokemon', rebrickableId: null } 
     ],
+    
+    _themesMap: null,
+
+    async loadAllThemes() {
+        const cached = localStorage.getItem('rebrickable_themes');
+        if (cached) {
+            this._themesMap = JSON.parse(cached);
+            return;
+        }
+        // Fetch all themes from API in the background
+        const data = await this.fetchRebrickable('/themes/?page_size=1000');
+        if (data && data.results) {
+            const map = {};
+            data.results.forEach(t => map[t.id] = t.name);
+            this._themesMap = map;
+            localStorage.setItem('rebrickable_themes', JSON.stringify(map));
+        }
+    },
+
+    getThemeName(id) {
+        if (this._themesMap && this._themesMap[id]) {
+            return this._themesMap[id];
+        }
+        const cat = this.CATEGORIES.find(c => c.rebrickableId == id);
+        return cat ? cat.name : `Tema ${id}`;
+    },
 
     async fetchRebrickable(endpoint) {
         try {
@@ -31,9 +57,9 @@ const API = {
         }
     },
 
-    async searchSets(query, categoryId = null) {
+    async searchSets(query, categoryId = null, page = 1) {
         // If we have a query, search by it. Otherwise just list from category
-        let endpoint = `/sets/?page_size=20&ordering=-year`;
+        let endpoint = `/sets/?page_size=30&ordering=-year&page=${page}`;
         if (query) {
             endpoint += `&search=${encodeURIComponent(query)}`;
         }

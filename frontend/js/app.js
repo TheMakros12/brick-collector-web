@@ -3,15 +3,18 @@ const App = {
     searchState: {
         results: [],
         query: '',
-        category: ''
+        category: '',
+        page: 1
     },
     collectionState: {
         tab: 'collection', // or 'wishlist'
         searchQuery: '',
-        sortBy: 'default'
+        sortBy: 'default',
+        themeFilter: 'all'
     },
 
     init() {
+        API.loadAllThemes(); // Load themes mapping in background
         const user = Storage.getUser();
         
         // Navigation Listeners
@@ -57,7 +60,7 @@ const App = {
         container.innerHTML = `
             <div class="view-container" style="display: flex; flex-direction: column; justify-content: center; min-height: 80vh;">
                 <div class="text-center mb-4">
-                    <h1 style="color: var(--primary); font-size: 2rem;">BrickCollector</h1>
+                    <h1 style="color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-size: 2rem;">BrickCollector</h1>
                     <p style="color: var(--text-muted);">Tu colección de Legos, organizada.</p>
                 </div>
                 <form id="login-form" style="background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border); max-width: 400px; margin: 0 auto; width: 100%;">
@@ -115,7 +118,10 @@ const App = {
                     </button>
                 </div>
                 <div id="search-results" class="mt-4">
-                    ${this.searchState.results.length > 0 ? this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('') : '<div class="text-center text-muted mt-4">Busca tu próximo set de Lego.</div>'}
+                    ${this.searchState.results.length > 0 ? 
+                        this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('') + 
+                        ((this.searchState.results.length >= 30 && !/^\d+(-1)?$/.test(this.searchState.query)) ? '<button class="btn btn-outline w-full mt-4" onclick="App.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>' : '') 
+                        : '<div class="text-center text-muted mt-4">Busca tu próximo set de Lego.</div>'}
                 </div>
             </div>
         `;
@@ -136,6 +142,7 @@ const App = {
         
         this.searchState.query = query;
         this.searchState.category = category;
+        this.searchState.page = 1;
 
         const resultsContainer = document.getElementById('search-results');
         resultsContainer.innerHTML = '<div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Buscando...</div>';
@@ -156,9 +163,38 @@ const App = {
         if (this.searchState.results.length === 0) {
             resultsContainer.innerHTML = '<div class="text-center text-muted p-4">No se encontraron resultados.</div>';
         } else {
-            resultsContainer.innerHTML = this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('');
+            let html = this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('');
+            if (!/^\d+(-1)?$/.test(query) && this.searchState.results.length >= 30) {
+                html += '<button class="btn btn-outline w-full mt-4" onclick="App.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>';
+            }
+            resultsContainer.innerHTML = html;
         }
         lucide.createIcons();
+    },
+
+    async loadMoreResults() {
+        const btn = document.getElementById('load-more-btn');
+        if (btn) {
+            btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Cargando...';
+            lucide.createIcons();
+        }
+
+        this.searchState.page++;
+        const newResults = await API.searchSets(this.searchState.query, this.searchState.category, this.searchState.page);
+        
+        if (newResults && newResults.length > 0) {
+            this.searchState.results = [...this.searchState.results, ...newResults];
+            const resultsContainer = document.getElementById('search-results');
+            let html = this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('');
+            if (newResults.length >= 30) {
+                html += '<button class="btn btn-outline w-full mt-4" onclick="App.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>';
+            }
+            resultsContainer.innerHTML = html;
+            lucide.createIcons();
+        } else {
+            if (btn) btn.remove();
+            UI.showToast("No hay más resultados", "info");
+        }
     },
 
     // --- ACTIONS FROM CARDS ---
@@ -167,7 +203,11 @@ const App = {
         if (set) {
             if (target === 'collection') {
                 const added = Storage.addToCollection(set);
-                if (added) UI.showToast('Añadido a Colección', 'success');
+                if (added) {
+                    UI.showToast('Añadido a Colección', 'success');
+                    // Automatically open the details modal so they can fill purchase info
+                    App.openSetDetails(setId);
+                }
                 else UI.showToast('El set ya está en tu colección', 'info');
             } else {
                 const added = Storage.addToWishlist(set);
@@ -197,18 +237,30 @@ const App = {
             filteredItems.sort((a,b) => (b.year || 0) - (a.year || 0));
         }
 
+        // Calculate unique themes for the dropdown
+        const uniqueThemes = [...new Set(items.map(i => i.theme_id).filter(id => id))];
+        const themeOptions = uniqueThemes.map(id => 
+            `<option value="${id}" ${this.collectionState.themeFilter == id ? 'selected' : ''}>${API.getThemeName(id)}</option>`
+        ).join('');
+
         container.innerHTML = `
             <div class="view-container">
                 <h2 class="mb-4">Mis Legos</h2>
-                <div class="flex mb-4 p-1" style="background: rgba(30, 41, 59, 0.5); border-radius: 12px; border: 1px solid var(--border);">
-                    <button class="flex-1 text-center py-2 rounded-md ${isCol ? 'font-bold' : ''}" style="border:none; cursor:pointer; background: ${isCol ? 'var(--primary)' : 'transparent'}; color: ${isCol ? '#000' : 'var(--text-muted)'}; transition: all 0.2s;" onclick="App.setCollectionTab('collection')">Mi Colección</button>
-                    <button class="flex-1 text-center py-2 rounded-md ${!isCol ? 'font-bold' : ''}" style="border:none; cursor:pointer; background: ${!isCol ? 'var(--primary)' : 'transparent'}; color: ${!isCol ? '#000' : 'var(--text-muted)'}; transition: all 0.2s;" onclick="App.setCollectionTab('wishlist')">Lista de Deseos</button>
+                <div class="flex mb-4 p-1" style="background: var(--bg-surface-muted); border-radius: 12px; border: 1px solid var(--border);">
+                    <button class="flex-1 text-center py-2 rounded-md ${isCol ? 'font-bold' : ''}" style="border:none; cursor:pointer; background: ${isCol ? 'var(--accent)' : 'transparent'}; color: ${isCol ? 'var(--bg-surface)' : 'var(--text-secondary)'}; transition: all 0.2s;" onclick="App.setCollectionTab('collection')">Mi Colección</button>
+                    <button class="flex-1 text-center py-2 rounded-md ${!isCol ? 'font-bold' : ''}" style="border:none; cursor:pointer; background: ${!isCol ? 'var(--accent)' : 'transparent'}; color: ${!isCol ? 'var(--bg-surface)' : 'var(--text-secondary)'}; transition: all 0.2s;" onclick="App.setCollectionTab('wishlist')">Lista de Deseos</button>
                 </div>
                 
-                <div class="flex gap-2 mb-4">
+                <div class="flex gap-2 mb-2">
                     <input type="text" id="local-search" class="input-field flex-1" placeholder="Buscar..." value="${this.collectionState.searchQuery}" onkeyup="App.updateCollectionSearch(this.value)">
-                    <select id="local-sort" class="input-field" style="width: 120px;" onchange="App.updateCollectionSort(this.value)">
-                        <option value="default" ${this.collectionState.sortBy === 'default' ? 'selected' : ''}>Orden</option>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <select id="local-theme" class="input-field flex-1" onchange="App.updateCollectionThemeFilter(this.value)">
+                        <option value="all">Todas las categorías</option>
+                        ${themeOptions}
+                    </select>
+                    <select id="local-sort" class="input-field flex-1" onchange="App.updateCollectionSort(this.value)">
+                        <option value="default" ${this.collectionState.sortBy === 'default' ? 'selected' : ''}>Orden Original</option>
                         <option value="pieces" ${this.collectionState.sortBy === 'pieces' ? 'selected' : ''}>+ Piezas</option>
                         <option value="price" ${this.collectionState.sortBy === 'price' ? 'selected' : ''}>+ Precio</option>
                         <option value="year" ${this.collectionState.sortBy === 'year' ? 'selected' : ''}>Recientes</option>
@@ -236,16 +288,48 @@ const App = {
         this.renderCollection(document.getElementById('main-content'));
         lucide.createIcons();
     },
+    updateCollectionListOnly() {
+        const isCol = this.collectionState.tab === 'collection';
+        const items = isCol ? Storage.getCollection() : Storage.getWishlist();
+        
+        let filteredItems = items;
+        if (this.collectionState.searchQuery) {
+            const q = this.collectionState.searchQuery.toLowerCase();
+            filteredItems = items.filter(i => i.name.toLowerCase().includes(q) || i.set_num.startsWith(q));
+        }
+
+        if (this.collectionState.themeFilter !== 'all') {
+            filteredItems = filteredItems.filter(i => i.theme_id == this.collectionState.themeFilter);
+        }
+        
+        if (this.collectionState.sortBy === 'pieces') {
+            filteredItems.sort((a,b) => (b.num_parts || 0) - (a.num_parts || 0));
+        } else if (this.collectionState.sortBy === 'price') {
+            filteredItems.sort((a,b) => (b.estimated_price || 0) - (a.estimated_price || 0));
+        } else if (this.collectionState.sortBy === 'year') {
+            filteredItems.sort((a,b) => (b.year || 0) - (a.year || 0));
+        }
+
+        const listContainer = document.getElementById('collection-list');
+        if (listContainer) {
+            listContainer.innerHTML = filteredItems.length > 0 ? 
+                filteredItems.map(s => UI.createLegoCard(s, this.collectionState.tab)).join('') 
+                : `<div class="text-center text-muted p-4">La lista está vacía.</div>`;
+            lucide.createIcons();
+        }
+    },
+
     updateCollectionSearch(val) {
         this.collectionState.searchQuery = val;
-        this.renderCollection(document.getElementById('main-content'));
-        lucide.createIcons();
-        document.getElementById('local-search').focus(); // Keep focus
+        this.updateCollectionListOnly();
     },
     updateCollectionSort(val) {
         this.collectionState.sortBy = val;
-        this.renderCollection(document.getElementById('main-content'));
-        lucide.createIcons();
+        this.updateCollectionListOnly();
+    },
+    updateCollectionThemeFilter(val) {
+        this.collectionState.themeFilter = val;
+        this.updateCollectionListOnly();
     },
 
     removeFromCollection(setId) {
@@ -328,70 +412,175 @@ const App = {
         let totalPieces = 0;
         let totalValue = 0;
         let largestSet = null;
+        let mostValuableSet = null;
+        let oldestSet = null;
         let themeCounts = {};
+        let yearCounts = {};
+        
+        let bestPricePerPieceSet = null;
+        let bestPricePerPiece = Infinity;
+        
+        let highestRevalSet = null;
+        let highestRevalPct = -Infinity;
+        
+        let revalPercentages = [];
+        let horizontalChartData = [];
 
         col.forEach(s => {
             const p = s.num_parts || 0;
             const v = s.estimated_price || 0;
+            const y = s.year || 0;
             totalPieces += p;
             totalValue += v;
             
-            if (!largestSet || p > (largestSet.num_parts || 0)) {
-                largestSet = s;
-            }
+            if (!largestSet || p > (largestSet.num_parts || 0)) largestSet = s;
+            if (!mostValuableSet || v > (mostValuableSet.estimated_price || 0)) mostValuableSet = s;
+            if (y > 0 && (!oldestSet || y < (oldestSet.year || 9999))) oldestSet = s;
 
             if (s.theme_id) {
                 themeCounts[s.theme_id] = (themeCounts[s.theme_id] || 0) + 1;
             }
+            if (y > 0) {
+                yearCounts[y] = (yearCounts[y] || 0) + 1;
+            }
+            
+            let pricePaid = null;
+            if (s.purchaseDetails && s.purchaseDetails.pricePaid !== undefined && s.purchaseDetails.pricePaid !== '') {
+                pricePaid = parseFloat(s.purchaseDetails.pricePaid);
+            }
+            
+            if (pricePaid !== null && pricePaid > 0) {
+                if (p > 0) {
+                    const ppp = pricePaid / p;
+                    if (ppp < bestPricePerPiece) {
+                        bestPricePerPiece = ppp;
+                        bestPricePerPieceSet = s;
+                    }
+                }
+                
+                if (v > 0) {
+                    const rev = ((v - pricePaid) / pricePaid) * 100;
+                    revalPercentages.push(rev);
+                    if (rev > highestRevalPct) {
+                        highestRevalPct = rev;
+                        highestRevalSet = s;
+                    }
+                }
+            }
+
+            if (pricePaid !== null && v > 0) {
+                horizontalChartData.push({
+                    name: s.name,
+                    pricePaid: pricePaid,
+                    marketValue: v
+                });
+            }
         });
 
-        // Resolve top themes (we just have ID, we could fetch names but for simplicity we use ID or known map)
-        const sortedThemes = Object.entries(themeCounts).sort((a,b) => b[1] - a[1]).slice(0,3);
+        horizontalChartData.sort((a, b) => b.marketValue - a.marketValue);
+        horizontalChartData = horizontalChartData.slice(0, 15); // Top 15
+
+        const avgRevaluation = revalPercentages.length > 0 
+            ? revalPercentages.reduce((a,b)=>a+b,0) / revalPercentages.length 
+            : 0;
+            
+        const revalColor = avgRevaluation > 0 ? 'var(--success)' : 'var(--accent)';
+
+        // Badges Logic
+        let badges = [];
+        if (col.length >= 1) badges.push({ icon: 'star', text: 'Coleccionista Novato' });
+        if (col.length >= 10) badges.push({ icon: 'award', text: 'Gran Coleccionista' });
+        if (totalPieces >= 5000) badges.push({ icon: 'hammer', text: 'Maestro Constructor' });
+        if (totalValue >= 1000) badges.push({ icon: 'gem', text: 'Vitrina de Lujo' });
+        
+        const topThemeId = Object.keys(themeCounts).sort((a,b) => themeCounts[b] - themeCounts[a])[0];
+        if (topThemeId && themeCounts[topThemeId] >= 3) {
+            const themeMap = API.CATEGORIES.find(c => c.rebrickableId == topThemeId);
+            if(themeMap) badges.push({ icon: 'heart', text: `Fan de ${themeMap.name}` });
+        }
+
+        const badgesHtml = badges.map(b => `<div class="profile-badge"><i data-lucide="${b.icon}"></i> ${b.text}</div>`).join('');
+
+        const renderHighlight = (title, set, subtitle) => set ? `
+            <div class="highlight-set-card flex-1">
+                <img src="${set.set_img_url}" class="highlight-set-img" alt="Set">
+                <div>
+                    <div class="highlight-title">${title}</div>
+                    <div class="highlight-name">${set.name}</div>
+                    <div class="tech-text" style="color: var(--text-secondary); font-size: 0.85rem;">${subtitle}</div>
+                </div>
+            </div>
+        ` : '';
 
         container.innerHTML = `
             <div class="view-container">
                 <div class="text-center mb-4">
-                    <div style="width:80px; height:80px; border-radius:50%; background:var(--primary); color:black; font-size:2rem; font-weight:bold; display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;">
+                    <div style="width:80px; height:80px; border-radius:50%; background:var(--bg-surface-muted); border:1px solid var(--border); color:var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-size:2rem; font-weight:600; display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;">
                         ${user.name[0]}${user.lastName[0]}
                     </div>
                     <h2>${user.name} ${user.lastName}</h2>
-                    <p class="text-muted">${user.email}</p>
+                    <p class="text-muted" style="color: var(--text-secondary)">${user.email}</p>
+                    <div class="badge-container">${badgesHtml}</div>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 30px;">
                     <div>
-                        <h3 class="mb-3">Estadísticas Totales</h3>
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div class="stat-value">${col.length}</div>
-                        <div class="stat-label">Sets Totales</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${totalPieces}</div>
-                        <div class="stat-label">Piezas Totales</div>
-                    </div>
-                    <div class="stat-card" style="grid-column: span 2;">
-                        <div class="stat-value">$${totalValue.toFixed(2)}</div>
-                        <div class="stat-label">Valor Estimado Vitrina</div>
+                        <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">KPIs</h3>
+                        <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                            <div class="stat-card" style="border-radius: 8px;">
+                                <div class="stat-value" id="stat-sets" style="font-family: 'IBM Plex Mono', monospace;">0</div>
+                                <div class="stat-label">Sets Totales</div>
+                            </div>
+                            <div class="stat-card" style="border-radius: 8px;">
+                                <div class="stat-value" id="stat-pieces" style="font-family: 'IBM Plex Mono', monospace;">0</div>
+                                <div class="stat-label">Piezas Totales</div>
+                            </div>
+                            <div class="stat-card" style="border-radius: 8px;">
+                                <div class="stat-value" id="stat-value" style="font-family: 'IBM Plex Mono', monospace;">$0</div>
+                                <div class="stat-label">Valor Estimado Vitrina</div>
+                            </div>
+                            <div class="stat-card" style="border-radius: 8px;">
+                                <div class="stat-value" style="font-family: 'IBM Plex Mono', monospace; color: ${revalColor};">${avgRevaluation > 0 ? '+' : ''}${avgRevaluation.toFixed(1)}%</div>
+                                <div class="stat-label">Revalorización Media</div>
+                            </div>
                         </div>
                     </div>
                     
-                    <div>
-                        <h3 class="mb-3">Distribución de Temas</h3>
-                <div style="background: var(--bg-card); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-bottom: 25px; display: flex; justify-content: center;">
-                    <canvas id="themeChart" style="max-height: 250px;"></canvas>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                        <div>
+                            <h3 class="mb-3">Distribución de Temas</h3>
+                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center;">
+                                <canvas id="themeChart" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="mb-3">Inversión vs Valor Actual</h3>
+                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center;">
+                                <canvas id="financialChart" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
                     </div>
                     
-                    ${largestSet ? `
+                    ${Object.keys(yearCounts).length > 0 ? `
                     <div>
-                        <h3 class="mb-3">El Set más Grande</h3>
-                <div style="background: var(--bg-card); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-bottom: 25px; display:flex; gap:15px; align-items:center;">
-                    <img src="${largestSet.set_img_url}" style="width:80px; height:80px; object-fit:contain;">
-                    <div>
-                        <div style="font-weight:bold;">${largestSet.name}</div>
-                        <div class="text-primary">${largestSet.num_parts} piezas</div>
+                        <h3 class="mb-3">Sets por Año de Lanzamiento</h3>
+                        <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+                            <canvas id="yearChart" style="max-height: 250px;"></canvas>
                         </div>
                     </div>` : ''}
+
+                    ${col.length > 0 ? `
+                    <div>
+                        <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">Tops de Colección</h3>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            ${renderHighlight("El Más Grande", largestSet, `<span style="font-family: 'IBM Plex Mono', monospace;">${largestSet?.num_parts}</span> piezas`)}
+                            ${renderHighlight("El Más Valioso", mostValuableSet, `<span style="font-family: 'IBM Plex Mono', monospace;">€${mostValuableSet?.estimated_price}</span>`)}
+                            ${renderHighlight("El Más Antiguo", oldestSet, `Año <span style="font-family: 'IBM Plex Mono', monospace;">${oldestSet?.year}</span>`)}
+                            ${renderHighlight("Mejor Precio/Pieza", bestPricePerPieceSet, bestPricePerPiece !== Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">€${bestPricePerPiece.toFixed(2)}</span>/pz` : '-')}
+                            ${renderHighlight("Mayor Revalorización", highestRevalSet, highestRevalPct !== -Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">+${highestRevalPct.toFixed(1)}%</span>` : '-')}
+                        </div>
+                    </div>` : ''}
+
                 </div> <!-- End gap container -->
 
                 <div class="mt-5 pt-4" style="border-top: 1px solid var(--border);">
@@ -405,25 +594,123 @@ const App = {
             </div>
         `;
 
+        // Run animations
+        const animateValue = (id, end, isCurrency = false) => {
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            let start = 0;
+            const duration = 1000;
+            const stepTime = Math.abs(Math.floor(duration / (end || 1)));
+            const timer = setInterval(() => {
+                start += Math.max(1, Math.ceil(end / 30));
+                if (start >= end) {
+                    start = end;
+                    clearInterval(timer);
+                }
+                obj.innerText = isCurrency ? `$${start.toFixed(2)}` : start;
+            }, Math.max(stepTime, 20));
+        };
+
+        setTimeout(() => {
+            animateValue("stat-sets", col.length);
+            animateValue("stat-pieces", totalPieces);
+            animateValue("stat-value", totalValue, true);
+        }, 100);
+
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#6B685F';
+
         if(Object.keys(themeCounts).length > 0) {
             const ctx = document.getElementById('themeChart').getContext('2d');
-            const themeNames = Object.keys(themeCounts).map(id => {
-                const map = API.CATEGORIES.find(c => c.rebrickableId == id);
-                return map ? map.name : `Theme ${id}`;
-            });
-            new Chart(ctx, {
+            const themeNames = Object.keys(themeCounts).map(id => API.getThemeName(id));
+            if (App.themeChart) App.themeChart.destroy();
+            App.themeChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: themeNames,
                     datasets: [{
                         data: Object.values(themeCounts),
-                        backgroundColor: ['#FFCF00', '#E3000B', '#10B981', '#3B82F6', '#8B5CF6', '#F97316', '#EC4899'],
+                        backgroundColor: [
+                            getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#B94324',
+                            getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#C97F1D',
+                            getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#3F7D5C',
+                            '#3B82F6', '#8B5CF6', '#F97316', '#EC4899'
+                        ],
                         borderWidth: 0
                     }]
                 },
+                options: { plugins: { legend: { position: 'right', labels: { color: textColor } } } }
+            });
+        }
+
+        if(horizontalChartData.length > 0) {
+            const ctxFin = document.getElementById('financialChart').getContext('2d');
+            const labelsFin = horizontalChartData.map(d => d.name);
+            const invData = horizontalChartData.map(d => d.pricePaid);
+            const valData = horizontalChartData.map(d => d.marketValue);
+            
+            const colorAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#B94324';
+            const colorSuccess = getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#3F7D5C';
+            
+            if (App.financialChart) App.financialChart.destroy();
+            App.financialChart = new Chart(ctxFin, {
+                type: 'bar',
+                data: {
+                    labels: labelsFin,
+                    datasets: [
+                        {
+                            label: 'Precio Compra (€)',
+                            data: invData,
+                            backgroundColor: colorAccent,
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Valor Mercado (€)',
+                            data: valData,
+                            backgroundColor: colorSuccess,
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: { 
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { color: textColor } } },
+                    scales: {
+                        x: { ticks: { color: textColor }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        y: { ticks: { color: textColor }, grid: { display: false } }
+                    }
+                }
+            });
+            
+            // Adjust height based on number of items to prevent squishing
+            const chartParent = document.getElementById('financialChart').parentElement;
+            chartParent.style.height = `${Math.max(250, horizontalChartData.length * 40 + 50)}px`;
+            chartParent.style.display = 'block'; // Remove flex to allow height control
+            document.getElementById('financialChart').style.maxHeight = 'none';
+        }
+
+        if(Object.keys(yearCounts).length > 0) {
+            const ctxYear = document.getElementById('yearChart').getContext('2d');
+            const years = Object.keys(yearCounts).sort();
+            const data = years.map(y => yearCounts[y]);
+            if (App.yearChart) App.yearChart.destroy();
+            App.yearChart = new Chart(ctxYear, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Sets',
+                        data: data,
+                        backgroundColor: '#B94324',
+                        borderRadius: 4
+                    }]
+                },
                 options: {
-                    plugins: {
-                        legend: { position: 'right', labels: { color: '#F8FAFC' } }
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        x: { ticks: { color: textColor }, grid: { display: false } }
                     }
                 }
             });
@@ -463,56 +750,21 @@ const App = {
         }
     },
 
-    startTracker(setId, totalBags) {
-        const set = Storage.getCollection().find(s => s.set_num === setId);
-        if (set && parseInt(totalBags) > 0) {
-            set.buildTracker.active = true;
-            set.buildTracker.totalBags = parseInt(totalBags);
-            set.buildTracker.currentBag = 0;
-            set.buildTracker.startDate = new Date().toISOString();
-            set.buildTracker.endDate = null;
-            Storage.updateSetInCollection(set);
-            UI.renderSetDetails(set, true);
-            UI.showToast("¡Rastreador iniciado!", "success");
-        } else {
-            UI.showToast("Introduce un número de bolsas válido mayor a 0.", "error");
-        }
-    },
+    savePurchaseDetails(setId) {
+        const type = document.getElementById('purchase-type').value;
+        const price = parseFloat(document.getElementById('purchase-price').value) || 0;
+        const year = parseInt(document.getElementById('purchase-year').value) || new Date().getFullYear();
 
-    markAsAlreadyBuilt(setId) {
         const set = Storage.getCollection().find(s => s.set_num === setId);
         if (set) {
-            set.buildTracker.active = true;
-            set.buildTracker.totalBags = 1;
-            set.buildTracker.currentBag = 1;
-            const now = new Date().toISOString();
-            set.buildTracker.startDate = now;
-            set.buildTracker.endDate = now;
+            set.purchaseDetails = {
+                type: type,
+                pricePaid: type === 'gift' ? 0 : price,
+                purchaseYear: year
+            };
             Storage.updateSetInCollection(set);
+            UI.showToast("Datos de compra guardados", "success");
             UI.renderSetDetails(set, true);
-            UI.showToast("¡Marcado como ya montado!", "success");
-        }
-    },
-
-    finishTracker(setId) {
-        const set = Storage.getCollection().find(s => s.set_num === setId);
-        if (set) {
-            set.buildTracker.endDate = new Date().toISOString();
-            Storage.updateSetInCollection(set);
-            UI.renderSetDetails(set, true);
-            UI.showToast("¡Construcción finalizada!", "success");
-        }
-    },
-
-    changeTrackerBag(setId, delta) {
-        const set = Storage.getCollection().find(s => s.set_num === setId);
-        if (set) {
-            const newVal = set.buildTracker.currentBag + delta;
-            if (newVal >= 0 && newVal <= (set.buildTracker.totalBags || 999)) {
-                set.buildTracker.currentBag = newVal;
-                Storage.updateSetInCollection(set);
-                UI.renderSetDetails(set, true);
-            }
         }
     },
 
@@ -527,4 +779,20 @@ const App = {
 // Initialize App on load
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
+});
+
+document.addEventListener('themeChanged', () => {
+    if (App.currentView === 'profile') {
+        const color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#6B685F';
+        
+        if (App.themeChart) {
+            App.themeChart.options.plugins.legend.labels.color = color;
+            App.themeChart.update();
+        }
+        if (App.yearChart) {
+            App.yearChart.options.scales.x.ticks.color = color;
+            App.yearChart.options.scales.y.ticks.color = color;
+            App.yearChart.update();
+        }
+    }
 });

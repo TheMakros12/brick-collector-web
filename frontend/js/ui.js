@@ -67,7 +67,7 @@ const UI = {
                     <img src="${imageUrl}" alt="${set.name}" loading="lazy">
                 </div>
                 <div class="set-info">
-                    <div class="set-id">${set.set_num.split('-')[0]}</div>
+                    <div class="set-id tech-text">${set.set_num.split('-')[0]}</div>
                     <div class="set-name">${set.name}</div>
                     <div class="set-meta">
                         <span><i data-lucide="box" style="width:14px"></i> ${pieces}</span>
@@ -104,96 +104,93 @@ const UI = {
 
     renderSetDetails(set, isInCollection) {
         const imageUrl = set.set_img_url || 'https://via.placeholder.com/300?text=No+Image';
+        const purchase = set.purchaseDetails || { type: 'self', pricePaid: '', notes: '' };
         
-        let trackerHtml = '';
-        if (isInCollection) {
-            const tracker = set.buildTracker || { active: false, totalBags: 0, currentBag: 0, startDate: null, endDate: null };
-            const pct = tracker.totalBags > 0 ? Math.round((tracker.currentBag / tracker.totalBags) * 100) : 0;
-            
-            let trackerContent = '';
-            if (!tracker.active && !tracker.endDate) {
-                trackerContent = `
-                    <div class="input-group mb-2">
-                        <label>Total de Bolsas (Opcional)</label>
-                        <input type="number" id="tracker-total" class="input-field" value="${tracker.totalBags || ''}" placeholder="Ej: 15" min="1">
-                    </div>
-                    <button class="btn w-full mb-2" onclick="App.startTracker('${set.set_num}', document.getElementById('tracker-total').value)">Empezar Construcción</button>
-                    <button class="btn btn-outline w-full" onclick="App.markAsAlreadyBuilt('${set.set_num}')" style="border-color: var(--success); color: var(--success);">
-                        <i data-lucide="check-square"></i> Ya lo tengo montado
-                    </button>
-                `;
-            } else if (tracker.active && !tracker.endDate) {
-                trackerContent = `
-                    <div class="flex justify-between items-center mb-2" style="font-size: 0.9rem;">
-                        <span>Inicio: ${new Date(tracker.startDate).toLocaleDateString()}</span>
-                        <span>Bolsa ${tracker.currentBag} de ${tracker.totalBags}</span>
-                    </div>
-                    
-                    <div class="theme-bar-bg mb-4" style="background: rgba(255,255,255,0.1)">
-                        <div class="theme-bar-fill" style="width: ${pct}%; background: var(--success)"></div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between mb-4">
-                        <span>Avanzar bolsa:</span>
-                        <div class="flex items-center gap-2">
-                            <button class="btn btn-outline" style="padding: 5px 15px;" onclick="App.changeTrackerBag('${set.set_num}', -1)">-</button>
-                            <button class="btn btn-outline" style="padding: 5px 15px;" onclick="App.changeTrackerBag('${set.set_num}', 1)">+</button>
-                        </div>
-                    </div>
-                    <button class="btn w-full" style="background: var(--success); color: white;" onclick="App.finishTracker('${set.set_num}')">Marcar como Finalizado</button>
-                `;
-            } else if (tracker.endDate) {
-                const days = Math.ceil((new Date(tracker.endDate) - new Date(tracker.startDate)) / (1000 * 60 * 60 * 24)) || 1;
-                trackerContent = `
-                    <div class="text-center" style="color: var(--success);">
-                        <i data-lucide="check-circle" style="width: 40px; height: 40px; margin-bottom: 10px;"></i>
-                        <h4 class="mb-2">¡Construcción Completada!</h4>
-                        <p class="text-muted" style="font-size: 0.9rem;">
-                            Inicio: ${new Date(tracker.startDate).toLocaleDateString()}<br>
-                            Fin: ${new Date(tracker.endDate).toLocaleDateString()}<br>
-                            Tiempo: ${days} días
-                        </p>
-                    </div>
-                `;
-            }
 
-            trackerHtml = `
-                <div class="build-tracker mt-4">
-                    <h3 style="font-size: 1.1rem; margin-bottom: 15px;">Progreso de Construcción</h3>
-                    ${trackerContent}
+
+        let purchaseHtml = '';
+        let actionsHtml = '';
+
+        if (isInCollection) {
+            // --- PURCHASE DETAILS ---
+            const currentYear = new Date().getFullYear();
+            const pYear = purchase.purchaseYear || currentYear;
+            
+            purchaseHtml = `
+                <div class="modal-section mt-4">
+                    <div class="modal-section-title"><i data-lucide="credit-card"></i> Mi Compra</div>
+                    <div class="input-group mb-3">
+                        <label>Método de Adquisición</label>
+                        <select id="purchase-type" class="input-field" onchange="document.getElementById('purchase-price-group').style.display = this.value === 'gift' ? 'none' : 'block'">
+                            <option value="self" ${purchase.type === 'self' ? 'selected' : ''}>🛍️ Comprado por mí</option>
+                            <option value="gift" ${purchase.type === 'gift' ? 'selected' : ''}>🎁 Fue un regalo</option>
+                            <option value="partial" ${purchase.type === 'partial' ? 'selected' : ''}>🤝 Pago compartido / Segunda mano</option>
+                        </select>
+                    </div>
+                    <div class="input-group mb-3" id="purchase-price-group" style="display: ${purchase.type === 'gift' ? 'none' : 'block'};">
+                        <label>Precio Pagado (€)</label>
+                        <input type="number" id="purchase-price" class="input-field" step="0.01" value="${purchase.pricePaid}">
+                    </div>
+                    <div class="input-group mb-3">
+                        <label>Año de Compra</label>
+                        <input type="number" id="purchase-year" class="input-field" value="${pYear}" min="1900" max="2100">
+                    </div>
+                    <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Detalles</button>
                 </div>
+            `;
+
+            actionsHtml = `
+                <button class="btn w-full mb-3" onclick="App.viewPieces('${set.set_num}')">
+                    <i data-lucide="puzzle"></i> Ver Piezas del Set
+                </button>
             `;
         }
 
         const content = `
-            <div class="text-center mb-4">
-                <img src="${imageUrl}" alt="${set.name}" style="max-width: 100%; max-height: 200px; object-fit: contain;">
+            <!-- HEADER -->
+            <div class="text-center mb-4" style="background: var(--bg-surface-muted); border-radius: var(--radius-md); padding: 20px;">
+                <img src="${imageUrl}" alt="${set.name}" style="max-width: 100%; max-height: 250px; object-fit: contain;">
             </div>
-            <h2 class="mb-2" style="font-size: 1.3rem;">${set.name}</h2>
-            <div class="set-id mb-4" style="font-size: 1rem;">${set.set_num.split('-')[0]} • Año: ${set.year || 'N/A'}</div>
             
-            <div class="stat-grid" style="margin-bottom: 15px;">
-                <div class="stat-card" style="padding: 10px;">
-                    <div class="stat-value" style="font-size: 1.2rem;">${set.num_parts || 0}</div>
-                    <div class="stat-label">Piezas</div>
-                </div>
-                <div class="stat-card" style="padding: 10px;">
-                    <div class="stat-value" style="font-size: 1.2rem;">€${set.estimated_price || 0}</div>
-                    <div class="stat-label">Precio Estimado</div>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.5rem; margin-bottom: 5px;">${set.name}</h2>
+                <div class="tech-text text-secondary" style="font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <span style="background: var(--accent-bg); color: var(--accent-text); padding: 2px 8px; border-radius: 4px; font-weight: bold;">${set.set_num.split('-')[0]}</span>
+                    <span>Año: ${set.year || 'N/A'}</span>
                 </div>
             </div>
+            
+            <!-- GRID LAYOUT -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                
+                <!-- LEFT COLUMN -->
+                <div>
+                    <div class="modal-section">
+                        <div class="modal-section-title"><i data-lucide="info"></i> Datos del Mercado</div>
+                        <div class="stat-grid" style="margin-bottom: 0;">
+                            <div class="stat-card" style="padding: 15px;">
+                                <div class="stat-value" style="font-size: 1.5rem;">${set.num_parts || 0}</div>
+                                <div class="stat-label">Piezas</div>
+                            </div>
+                            <div class="stat-card" style="padding: 15px;">
+                                <div class="stat-value" style="font-size: 1.5rem;">€${set.estimated_price || 0}</div>
+                                <div class="stat-label">Precio Estimado</div>
+                            </div>
+                        </div>
+                    </div>
 
-            <a href="${set.set_url}" target="_blank" class="btn btn-outline w-full mb-4" style="text-decoration: none;">
-                <i data-lucide="external-link"></i> Ver en Rebrickable
-            </a>
+                    ${actionsHtml}
+                    
+                    <a href="${set.set_url}" target="_blank" class="btn btn-outline w-full" style="text-decoration: none;">
+                        <i data-lucide="external-link"></i> Ver en Rebrickable
+                    </a>
+                </div>
 
-            ${isInCollection ? `
-                <button class="btn w-full mb-4" onclick="App.viewPieces('${set.set_num}')">
-                    <i data-lucide="puzzle"></i> Ver Piezas del Set
-                </button>
-            ` : ''}
-
-            ${trackerHtml}
+                <!-- RIGHT COLUMN -->
+                <div>
+                    ${purchaseHtml}
+                </div>
+            </div>
         `;
         
         UI.showModal(content);
@@ -206,7 +203,7 @@ const UI = {
                 .switch input { opacity: 0; width: 0; height: 0; }
                 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
                 .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-                input:checked + .slider { background-color: var(--primary); }
+                input:checked + .slider { background-color: var(--accent); }
                 input:checked + .slider:before { transform: translateX(24px); }
             `;
             document.head.appendChild(style);
@@ -224,8 +221,8 @@ const UI = {
             return `
                 <div class="piece-card">
                     <img src="${img}" alt="${p.part.name}" loading="lazy">
-                    <div style="font-size: 0.75rem; color: var(--primary); font-weight: bold;">${p.quantity}x</div>
-                    <div style="font-size: 0.65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.part.part_num}</div>
+                    <div style="font-size: 0.75rem; color: var(--accent); font-weight: bold;">${p.quantity}x</div>
+                    <div class="tech-text" style="font-size: 0.65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">${p.part.part_num}</div>
                 </div>
             `;
         }).join('');
