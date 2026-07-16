@@ -119,8 +119,40 @@
 }
 
 [data-theme="dark"] .piece-card img {
+    mix-blend-mode: multiply;
     padding: 4px;
     border-radius: 4px;
+}
+
+/* Retirement Alert Badges (Wishlist only) */
+.retirement-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    border: 1px solid;
+}
+
+.retirement-risk {
+    background: rgba(201, 127, 29, 0.15);
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
+.retirement-retired {
+    background: rgba(185, 67, 36, 0.15);
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 .set-info {
@@ -349,7 +381,7 @@
 }
 
 [data-theme="dark"] .highlight-set-img {
-    background: #FFFFFF;
+    background: transparent;
 }
 
 .highlight-title {
@@ -477,6 +509,7 @@
     height: 60px;
     object-fit: contain;
     margin-bottom: 5px;
+    mix-blend-mode: multiply;
 }
 
 .piece-card span {
@@ -552,4 +585,111 @@
         transform: translateX(120%);
         opacity: 0;
     }
+}
+
+/* ============================
+   MY PIECES VIEW
+   ============================ */
+
+.my-pieces-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 14px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.my-piece-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    cursor: default;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.my-piece-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+.my-piece-img-wrap {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.my-piece-img-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+}
+
+[data-theme="dark"] .my-piece-img-wrap img {
+    mix-blend-mode: normal;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.my-piece-qty {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+}
+
+.my-piece-color {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    max-width: 100%;
+}
+
+.my-piece-color span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+}
+
+.piece-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.15);
+    display: inline-block;
+}
+
+.my-piece-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.my-pieces-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    text-align: center;
 }

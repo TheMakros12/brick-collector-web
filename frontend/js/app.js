@@ -12,6 +12,13 @@ const App = {
         sortBy: 'default',
         themeFilter: 'all'
     },
+    myPiecesState: {
+        allPieces: null,          // cache: null = not loaded, [] = loaded
+        colorFilter: 'all',
+        setFilter: 'all',
+        sortBy: 'quantity',
+        loading: false
+    },
 
     init() {
         API.loadAllThemes(); // Load themes mapping in background
@@ -23,6 +30,16 @@ const App = {
                 const view = e.currentTarget.dataset.view;
                 App.navigate(view);
             });
+        });
+
+        // Theme Change Listener
+        document.addEventListener('themeChanged', () => {
+            if (App.currentView === 'profile') {
+                // Pequeño timeout para asegurar que el CSS se ha aplicado antes de leer los colores
+                setTimeout(() => {
+                    App.renderProfile(document.getElementById('main-content'));
+                }, 50);
+            }
         });
 
         if (user) {
@@ -49,6 +66,7 @@ const App = {
             nav.classList.remove('hidden');
             if (view === 'search') this.renderSearch(main);
             else if (view === 'collection') this.renderCollection(main);
+            else if (view === 'pieces') this.renderMyPieces(main);
             else if (view === 'profile') this.renderProfile(main);
         }
         
@@ -204,6 +222,7 @@ const App = {
             if (target === 'collection') {
                 const added = Storage.addToCollection(set);
                 if (added) {
+                    this.myPiecesState.allPieces = null; // invalidate pieces cache
                     UI.showToast('Añadido a Colección', 'success');
                     // Automatically open the details modal so they can fill purchase info
                     App.openSetDetails(setId);
@@ -335,6 +354,7 @@ const App = {
     removeFromCollection(setId) {
         if(confirm("¿Eliminar de la colección?")) {
             Storage.removeFromCollection(setId);
+            this.myPiecesState.allPieces = null; // invalidate pieces cache
             this.renderCollection(document.getElementById('main-content'));
             lucide.createIcons();
         }
@@ -426,11 +446,28 @@ const App = {
         let revalPercentages = [];
         let horizontalChartData = [];
 
+        let top5CPP = [];
+        let acquisitionCounts = { 'self': 0, 'gift': 0, 'partial': 0 };
+        let purchaseYearSpend = {};
+        
+        const wish = Storage.getWishlist() || [];
+        const wishlistTotalCost = wish.reduce((sum, s) => sum + (s.estimated_price || 0), 0);
+
+        // If the Mis Piezas cache is loaded, use it as the source of truth for piece counts
+        // (more accurate than num_parts metadata). Otherwise fall back to num_parts.
+        const piecesCache = this.myPiecesState.allPieces;
+        if (piecesCache && piecesCache.length > 0) {
+            totalPieces = piecesCache.reduce((sum, p) => sum + p.quantity, 0);
+        }
+
         col.forEach(s => {
             const p = s.num_parts || 0;
             const v = s.estimated_price || 0;
             const y = s.year || 0;
-            totalPieces += p;
+            // Only add to totalPieces from num_parts if cache is NOT available
+            if (!piecesCache || piecesCache.length === 0) {
+                totalPieces += p;
+            }
             totalValue += v;
             
             if (!largestSet || p > (largestSet.num_parts || 0)) largestSet = s;
@@ -445,13 +482,23 @@ const App = {
             }
             
             let pricePaid = null;
-            if (s.purchaseDetails && s.purchaseDetails.pricePaid !== undefined && s.purchaseDetails.pricePaid !== '') {
-                pricePaid = parseFloat(s.purchaseDetails.pricePaid);
+            if (s.purchaseDetails) {
+                if (s.purchaseDetails.type) acquisitionCounts[s.purchaseDetails.type]++;
+                
+                if (s.purchaseDetails.pricePaid !== undefined && s.purchaseDetails.pricePaid !== '') {
+                    pricePaid = parseFloat(s.purchaseDetails.pricePaid);
+                }
+                
+                if (s.purchaseDetails.purchaseYear && pricePaid !== null) {
+                    const py = s.purchaseDetails.purchaseYear;
+                    purchaseYearSpend[py] = (purchaseYearSpend[py] || 0) + pricePaid;
+                }
             }
             
             if (pricePaid !== null && pricePaid > 0) {
                 if (p > 0) {
                     const ppp = pricePaid / p;
+                    top5CPP.push({ set: s, cpp: ppp });
                     if (ppp < bestPricePerPiece) {
                         bestPricePerPiece = ppp;
                         bestPricePerPieceSet = s;
@@ -476,6 +523,9 @@ const App = {
                 });
             }
         });
+
+        top5CPP.sort((a, b) => a.cpp - b.cpp);
+        top5CPP = top5CPP.slice(0, 5);
 
         horizontalChartData.sort((a, b) => b.marketValue - a.marketValue);
         horizontalChartData = horizontalChartData.slice(0, 15); // Top 15
@@ -512,6 +562,18 @@ const App = {
             </div>
         ` : '';
 
+        let cppRows = top5CPP.map((item, index) => `
+            <tr>
+                <td style="padding:12px 8px; border-bottom:1px solid var(--border);">${index + 1}</td>
+                <td style="padding:12px 8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;">
+                    <img src="${item.set.set_img_url}" style="width:32px; height:32px; object-fit:contain; border-radius:4px; background:transparent;"> 
+                    <span style="color: var(--text-secondary); font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;">${item.set.set_num.split('-')[0]}</span>
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;" title="${item.set.name}">${item.set.name}</span>
+                </td>
+                <td style="padding:12px 8px; border-bottom:1px solid var(--border); font-family: 'IBM Plex Mono', monospace;">${item.cpp.toFixed(3)}€</td>
+            </tr>
+        `).join('');
+
         container.innerHTML = `
             <div class="view-container">
                 <div class="text-center mb-4">
@@ -536,7 +598,7 @@ const App = {
                                 <div class="stat-label">Piezas Totales</div>
                             </div>
                             <div class="stat-card" style="border-radius: 8px;">
-                                <div class="stat-value" id="stat-value" style="font-family: 'IBM Plex Mono', monospace;">$0</div>
+                                <div class="stat-value" id="stat-value" style="font-family: 'IBM Plex Mono', monospace;">0€</div>
                                 <div class="stat-label">Valor Estimado Vitrina</div>
                             </div>
                             <div class="stat-card" style="border-radius: 8px;">
@@ -546,29 +608,110 @@ const App = {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                        <div>
-                            <h3 class="mb-3">Distribución de Temas</h3>
-                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center;">
-                                <canvas id="themeChart" style="max-height: 250px;"></canvas>
+                    <div style="margin-bottom: 20px;">
+                        <h3 class="mb-3">Wishlist vs Colección</h3>
+                        <div style="background: var(--bg-surface-muted); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+
+                            <!-- Two KPI cards side by side -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
+                                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; border-left: 3px solid var(--accent);">
+                                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;">Tu Vitrina</div>
+                                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 1.35rem; font-weight: bold; color: var(--accent);">${totalValue.toFixed(2)}€</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">${col.length} set${col.length !== 1 ? 's' : ''} en colección</div>
+                                </div>
+                                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; border-left: 3px solid var(--text-muted);">
+                                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;">Coste Wishlist</div>
+                                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 1.35rem; font-weight: bold; color: var(--text-secondary);">${wishlistTotalCost.toFixed(2)}€</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">${Storage.getWishlist().length} set${Storage.getWishlist().length !== 1 ? 's' : ''} deseados</div>
+                                </div>
                             </div>
+
+                            <!-- Stacked bar with labels -->
+                            ${(totalValue + wishlistTotalCost) > 0 ? (() => {
+                                const colPct = Math.round((totalValue / (totalValue + wishlistTotalCost)) * 100);
+                                const wisPct = 100 - colPct;
+                                return `
+                                <div style="margin-bottom: 10px;">
+                                    <div style="display: flex; border-radius: var(--radius-md); overflow: hidden; height: 28px; background: var(--bg-surface);">
+                                        <div style="width: ${colPct}%; background: var(--accent); display: flex; align-items: center; justify-content: center; transition: width 0.5s ease;">
+                                            ${colPct > 10 ? `<span style="font-size:0.72rem; font-weight:700; color:#fff;">${colPct}%</span>` : ''}
+                                        </div>
+                                        <div style="flex:1; background: var(--border); display: flex; align-items: center; justify-content: center;">
+                                            ${wisPct > 10 ? `<span style="font-size:0.72rem; font-weight:700; color: var(--text-secondary);">${wisPct}%</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-top: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted);">
+                                            <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background: var(--accent);"></span> Colección
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted);">
+                                            Wishlist <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background: var(--border);"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center;">
+                                    ${wishlistTotalCost > 0 
+                                        ? `Si completaras tu wishlist, tu inversión total sería <strong style="color: var(--text-primary);">${(totalValue + wishlistTotalCost).toFixed(2)}€</strong>`
+                                        : `🎉 ¡Tu wishlist está vacía! Tienes <strong style="color: var(--accent);">${totalValue.toFixed(2)}€</strong> en colección`
+                                    }
+                                </div>
+                                `;
+                            })() : ''}
                         </div>
-                        <div>
-                            <h3 class="mb-3">Inversión vs Valor Actual</h3>
-                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center;">
-                                <canvas id="financialChart" style="max-height: 250px;"></canvas>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                        ${top5CPP.length > 0 ? `
+                        <div style="display: flex; flex-direction: column;">
+                            <h3 class="mb-3">Top 5: Menor Coste por Pieza</h3>
+                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow-x: auto; flex: 1;">
+                                <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
+                                    <thead>
+                                        <tr style="color:var(--text-secondary);">
+                                            <th style="padding:10px 8px; border-bottom:1px solid var(--border);">#</th>
+                                            <th style="padding:10px 8px; border-bottom:1px solid var(--border);">Set</th>
+                                            <th style="padding:10px 8px; border-bottom:1px solid var(--border);">CPP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${cppRows}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>` : ''}
+
+                        <div style="display: flex; flex-direction: column;">
+                            <h3 class="mb-3">Origen de Colección</h3>
+                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center; align-items: center; flex: 1;">
+                                <canvas id="acqChart" style="max-height: 220px;"></canvas>
                             </div>
                         </div>
                     </div>
-                    
-                    ${Object.keys(yearCounts).length > 0 ? `
-                    <div>
-                        <h3 class="mb-3">Sets por Año de Lanzamiento</h3>
-                        <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
-                            <canvas id="yearChart" style="max-height: 250px;"></canvas>
-                        </div>
-                    </div>` : ''}
 
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                        ${Object.keys(purchaseYearSpend).length > 0 ? `
+                        <div style="display: flex; flex-direction: column;">
+                            <h3 class="mb-3">Gasto por Año de Compra</h3>
+                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); flex: 1;">
+                                <canvas id="yearChart" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>` : ''}
+
+                        <div style="display: flex; flex-direction: column;">
+                            <h3 class="mb-3">Distribución de Temas</h3>
+                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center; flex: 1;">
+                                <canvas id="themeChart" style="max-height: 250px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <h3 class="mb-3">Precio Original vs Valor Actual (Top 15)</h3>
+                        <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center;">
+                            <canvas id="financialChart" style="max-height: 350px;"></canvas>
+                        </div>
+                    </div>
+                    
                     ${col.length > 0 ? `
                     <div>
                         <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">Tops de Colección</h3>
@@ -582,15 +725,6 @@ const App = {
                     </div>` : ''}
 
                 </div> <!-- End gap container -->
-
-                <div class="mt-5 pt-4" style="border-top: 1px solid var(--border);">
-                    <button class="btn btn-danger w-full" onclick="App.clearAllData()">
-                        <i data-lucide="alert-triangle"></i> Borrar Todo (Danger Zone)
-                    </button>
-                    <button class="btn btn-outline w-full mt-2" onclick="App.logout()">
-                        <i data-lucide="log-out"></i> Cerrar Sesión
-                    </button>
-                </div>
             </div>
         `;
 
@@ -607,7 +741,7 @@ const App = {
                     start = end;
                     clearInterval(timer);
                 }
-                obj.innerText = isCurrency ? `$${start.toFixed(2)}` : start;
+                obj.innerText = isCurrency ? `${start.toFixed(2)}€` : start;
             }, Math.max(stepTime, 20));
         };
 
@@ -625,6 +759,7 @@ const App = {
             if (App.themeChart) App.themeChart.destroy();
             App.themeChart = new Chart(ctx, {
                 type: 'doughnut',
+                plugins: [ChartDataLabels],
                 data: {
                     labels: themeNames,
                     datasets: [{
@@ -638,7 +773,47 @@ const App = {
                         borderWidth: 0
                     }]
                 },
-                options: { plugins: { legend: { position: 'right', labels: { color: textColor } } } }
+                options: { 
+                    plugins: { 
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 13 },
+                            formatter: (value) => value
+                        },
+                        legend: { position: 'right', labels: { color: textColor } } 
+                    } 
+                }
+            });
+        }
+
+        if (Object.keys(acquisitionCounts).some(k => acquisitionCounts[k] > 0)) {
+            const ctxAcq = document.getElementById('acqChart').getContext('2d');
+            const labelsMap = { 'self': 'Pagado por mí', 'gift': 'Regalo', 'partial': 'Pago compartido' };
+            const activeKeys = Object.keys(acquisitionCounts).filter(k => acquisitionCounts[k] > 0);
+            
+            if (App.acqChart) App.acqChart.destroy();
+            App.acqChart = new Chart(ctxAcq, {
+                type: 'doughnut',
+                plugins: [ChartDataLabels],
+                data: {
+                    labels: activeKeys.map(k => labelsMap[k]),
+                    datasets: [{
+                        data: activeKeys.map(k => acquisitionCounts[k]),
+                        backgroundColor: ['#3F7D5C', '#8B5CF6', '#F97316'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 13 },
+                            formatter: (value) => value
+                        },
+                        legend: { position: 'right', labels: { color: textColor } } 
+                    } 
+                }
             });
         }
 
@@ -690,31 +865,295 @@ const App = {
             document.getElementById('financialChart').style.maxHeight = 'none';
         }
 
-        if(Object.keys(yearCounts).length > 0) {
+        if(Object.keys(purchaseYearSpend).length > 0) {
             const ctxYear = document.getElementById('yearChart').getContext('2d');
-            const years = Object.keys(yearCounts).sort();
-            const data = years.map(y => yearCounts[y]);
+            const years = Object.keys(purchaseYearSpend).sort();
+            const data = years.map(y => purchaseYearSpend[y]);
             if (App.yearChart) App.yearChart.destroy();
             App.yearChart = new Chart(ctxYear, {
                 type: 'bar',
+                plugins: [ChartDataLabels],
                 data: {
                     labels: years,
                     datasets: [{
-                        label: 'Sets',
+                        label: 'Gasto (€)',
                         data: data,
                         backgroundColor: '#B94324',
                         borderRadius: 4
                     }]
                 },
                 options: {
-                    plugins: { legend: { display: false } },
+                    plugins: { 
+                        legend: { display: false },
+                        datalabels: {
+                            color: textColor,
+                            anchor: 'end',
+                            align: 'top',
+                            font: { weight: 'bold', size: 12 },
+                            formatter: (value) => value.toFixed(2) + '€'
+                        }
+                    },
                     scales: {
-                        y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        y: { ticks: { color: textColor }, grid: { color: 'rgba(0,0,0,0.05)' }, beginAtZero: true },
                         x: { ticks: { color: textColor }, grid: { display: false } }
+                    },
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 25 // extra space for labels above bars
+                        }
                     }
                 }
             });
         }
+    },
+
+    // --- MY PIECES VIEW ---
+    async renderMyPieces(container) {
+        const col = Storage.getCollection();
+
+        if (col.length === 0) {
+            container.innerHTML = `
+                <div class="view-container">
+                    <div class="text-center" style="padding: 80px 20px; color: var(--text-muted);">
+                        <i data-lucide="puzzle" style="width:64px;height:64px;margin-bottom:16px;opacity:0.4;"></i>
+                        <h2 style="font-family:'Space Grotesk',sans-serif;margin-bottom:8px;">Todavía no hay piezas</h2>
+                        <p>Añade sets a tu colección y aquí verás todas sus piezas.</p>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        // Show the shell with a loading indicator immediately
+        container.innerHTML = `
+            <div class="view-container" id="my-pieces-view">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+                    <div>
+                        <h2 style="font-family:'Space Grotesk',sans-serif; font-size:1.75rem; margin-bottom:4px;">Mis Piezas</h2>
+                        <p id="pieces-subtitle" style="color:var(--text-muted); font-size:0.9rem;">Cargando inventario completo...</p>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <div style="text-align:right;">
+                            <div id="pieces-total-count" style="font-family:'IBM Plex Mono',monospace; font-size:1.5rem; font-weight:bold; color:var(--accent); line-height:1;">—</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px;">Piezas Totales</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div id="pieces-unique-count" style="font-family:'IBM Plex Mono',monospace; font-size:1.5rem; font-weight:bold; color:var(--text-secondary); line-height:1;">—</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px;">Tipos Únicos</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILTERS BAR -->
+                <div id="pieces-filters" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; padding:16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); opacity:0.5; pointer-events:none;">
+                    <select id="filter-set" class="input-field" style="flex:1; min-width:160px;" onchange="App.applyMyPiecesFilters()">
+                        <option value="all">Todos los sets</option>
+                    </select>
+                    <select id="filter-color" class="input-field" style="flex:1; min-width:160px;" onchange="App.applyMyPiecesFilters()">
+                        <option value="all">Todos los colores</option>
+                    </select>
+                    <select id="filter-sort" class="input-field" style="flex:1; min-width:160px;" onchange="App.applyMyPiecesFilters()">
+                        <option value="quantity">Más cantidad primero</option>
+                        <option value="quantity_asc">Menos cantidad primero</option>
+                        <option value="name">Nombre A→Z</option>
+                        <option value="color">Color A→Z</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="App.resetMyPiecesCache()" title="Recargar todas las piezas desde Rebrickable">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                </div>
+
+                <!-- LOADING INDICATOR -->
+                <div id="pieces-progress" style="margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.85rem; color:var(--text-muted);" id="progress-text">Descargando piezas de 0 / ${col.length} sets...</span>
+                    </div>
+                    <div style="height:6px; background:var(--bg-surface-muted); border-radius:var(--radius-pill); overflow:hidden;">
+                        <div id="progress-bar" style="height:100%; width:0%; background:var(--accent); border-radius:var(--radius-pill); transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- GRID -->
+                <div id="pieces-grid" class="my-pieces-grid"></div>
+            </div>
+        `;
+        lucide.createIcons();
+
+        // If already cached, render immediately
+        if (this.myPiecesState.allPieces !== null) {
+            this._renderPiecesGrid();
+            return;
+        }
+
+        // Load all pieces from all sets in parallel (with concurrency limit)
+        this.myPiecesState.loading = true;
+        const setIds = col.map(s => s.set_num);
+        const allRaw = []; // [{piece, setName, setNum}, ...]
+        let loaded = 0;
+
+        const concurrency = 3; // fetch up to 3 sets at a time
+        const chunks = [];
+        for (let i = 0; i < setIds.length; i += concurrency) {
+            chunks.push(setIds.slice(i, i + concurrency));
+        }
+
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (setId) => {
+                const setObj = col.find(s => s.set_num === setId);
+                const pieces = await API.getSetPieces(setId);
+                pieces.forEach(p => allRaw.push({ ...p, _setName: setObj.name, _setNum: setObj.set_num }));
+                loaded++;
+                // Update progress
+                const progressBar = document.getElementById('progress-bar');
+                const progressText = document.getElementById('progress-text');
+                if (progressBar) progressBar.style.width = `${(loaded / setIds.length) * 100}%`;
+                if (progressText) progressText.textContent = `Descargando piezas de ${loaded} / ${setIds.length} sets...`;
+            }));
+        }
+
+        this.myPiecesState.allPieces = allRaw;
+        this.myPiecesState.loading = false;
+        this._renderPiecesGrid();
+    },
+
+    _renderPiecesGrid() {
+        const raw = this.myPiecesState.allPieces || [];
+
+        // Aggregate: group by part_num+color so we sum quantities
+        const pieceMap = {};
+        raw.forEach(p => {
+            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
+            if (!pieceMap[key]) {
+                pieceMap[key] = {
+                    part: p.part,
+                    color: p.color,
+                    quantity: 0,
+                    sets: new Set()
+                };
+            }
+            pieceMap[key].quantity += p.quantity;
+            pieceMap[key].sets.add(p._setNum);
+        });
+
+        let pieces = Object.values(pieceMap);
+        const totalQuantity = pieces.reduce((s, p) => s + p.quantity, 0);
+
+        // Update counters
+        const totalEl = document.getElementById('pieces-total-count');
+        const uniqueEl = document.getElementById('pieces-unique-count');
+        const subtitleEl = document.getElementById('pieces-subtitle');
+        const progressDiv = document.getElementById('pieces-progress');
+
+        if (totalEl) totalEl.textContent = totalQuantity.toLocaleString('es');
+        if (uniqueEl) uniqueEl.textContent = pieces.length.toLocaleString('es');
+        if (subtitleEl) subtitleEl.textContent = `Inventario completo de ${Storage.getCollection().length} set${Storage.getCollection().length !== 1 ? 's' : ''}`;
+        if (progressDiv) progressDiv.remove();
+
+        // Build filter options
+        const uniqueColors = [...new Set(pieces.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
+        const col = Storage.getCollection();
+        const uniqueSets = col.map(s => ({ num: s.set_num, name: s.name }));
+
+        const colorSelect = document.getElementById('filter-color');
+        const setSelect = document.getElementById('filter-set');
+        const filtersBar = document.getElementById('pieces-filters');
+
+        if (colorSelect) {
+            const savedColor = this.myPiecesState.colorFilter;
+            colorSelect.innerHTML = `<option value="all">Todos los colores</option>` +
+                uniqueColors.map(c => `<option value="${c}" ${savedColor === c ? 'selected' : ''}>${c}</option>`).join('');
+        }
+        if (setSelect) {
+            const savedSet = this.myPiecesState.setFilter;
+            setSelect.innerHTML = `<option value="all">Todos los sets</option>` +
+                uniqueSets.map(s => `<option value="${s.num}" ${savedSet === s.num ? 'selected' : ''}>${s.name}</option>`).join('');
+        }
+        const sortSelect = document.getElementById('filter-sort');
+        if (sortSelect) sortSelect.value = this.myPiecesState.sortBy;
+
+        if (filtersBar) {
+            filtersBar.style.opacity = '1';
+            filtersBar.style.pointerEvents = 'auto';
+        }
+
+        this.applyMyPiecesFilters();
+    },
+
+    applyMyPiecesFilters() {
+        const raw = this.myPiecesState.allPieces || [];
+
+        // Read current filter values from DOM
+        const colorSelect = document.getElementById('filter-color');
+        const setSelect = document.getElementById('filter-set');
+        const sortSelect = document.getElementById('filter-sort');
+
+        const colorFilter = colorSelect ? colorSelect.value : 'all';
+        const setFilter = setSelect ? setSelect.value : 'all';
+        const sortBy = sortSelect ? sortSelect.value : 'quantity';
+
+        this.myPiecesState.colorFilter = colorFilter;
+        this.myPiecesState.setFilter = setFilter;
+        this.myPiecesState.sortBy = sortBy;
+
+        // Aggregate
+        const pieceMap = {};
+        raw.forEach(p => {
+            const colorName = p.color && p.color.name ? p.color.name : 'Unknown';
+            // Set filter: skip if not from selected set
+            if (setFilter !== 'all' && p._setNum !== setFilter) return;
+            // Color filter
+            if (colorFilter !== 'all' && colorName !== colorFilter) return;
+
+            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
+            if (!pieceMap[key]) {
+                pieceMap[key] = { part: p.part, color: p.color, colorName, quantity: 0 };
+            }
+            pieceMap[key].quantity += p.quantity;
+        });
+
+        let pieces = Object.values(pieceMap);
+
+        // Sort
+        if (sortBy === 'quantity') pieces.sort((a, b) => b.quantity - a.quantity);
+        else if (sortBy === 'quantity_asc') pieces.sort((a, b) => a.quantity - b.quantity);
+        else if (sortBy === 'name') pieces.sort((a, b) => a.part.name.localeCompare(b.part.name));
+        else if (sortBy === 'color') pieces.sort((a, b) => a.colorName.localeCompare(b.colorName));
+
+        const grid = document.getElementById('pieces-grid');
+        if (!grid) return;
+
+        if (pieces.length === 0) {
+            grid.innerHTML = `<div class="my-pieces-empty"><i data-lucide="search-x" style="width:48px;height:48px;margin-bottom:12px;opacity:0.4;"></i><p>No hay piezas con esos filtros</p></div>`;
+            lucide.createIcons();
+            return;
+        }
+
+        grid.innerHTML = pieces.map(p => {
+            const img = p.part.part_img_url || 'https://via.placeholder.com/100?text=?';
+            const colorHex = p.color && p.color.rgb ? `#${p.color.rgb}` : null;
+            const colorDot = colorHex
+                ? `<span class="piece-color-dot" style="background:${colorHex};"></span>`
+                : '';
+            return `
+                <div class="my-piece-card" title="${p.part.name}">
+                    <div class="my-piece-img-wrap">
+                        <img src="${img}" alt="${p.part.name}" loading="lazy">
+                    </div>
+                    <div class="my-piece-qty">${p.quantity}x</div>
+                    <div class="my-piece-color">${colorDot}<span>${p.colorName}</span></div>
+                    <div class="my-piece-num">${p.part.part_num}</div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    resetMyPiecesCache() {
+        this.myPiecesState.allPieces = null;
+        this.myPiecesState.colorFilter = 'all';
+        this.myPiecesState.setFilter = 'all';
+        this.renderMyPieces(document.getElementById('main-content'));
     },
 
     clearAllData() {

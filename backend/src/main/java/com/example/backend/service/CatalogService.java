@@ -57,6 +57,7 @@ public class CatalogService {
                 dto.setYear((Integer) setMap.get("year"));
                 dto.setNumParts((Integer) setMap.get("num_parts"));
                 dto.setSetImgUrl((String) setMap.get("set_img_url"));
+                dto.setSetUrl((String) setMap.get("set_url"));
                 
                 // 2. Llamar a Brickset para el precio (Proxy real)
                 dto.setEstimatedPrice(fetchPriceFromBrickset(dto.getSetId()));
@@ -94,5 +95,73 @@ public class CatalogService {
             System.err.println("Error fetching price from brickset for " + setId + ": " + e.getMessage());
         }
         return 0.0; // Fallback si no hay precio oficial
+    }
+
+    public LegoSetDTO getSetDetails(String setId) {
+        String formattedId = setId.contains("-") ? setId : setId + "-1";
+        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + formattedId + "/";
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "key " + rebrickableKey);
+        headers.set("Accept", "application/json");
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                Map<String, Object> setMap = response.getBody();
+                LegoSetDTO dto = new LegoSetDTO();
+                String rawId = (String) setMap.get("set_num");
+                dto.setSetId(rawId.split("-")[0]);
+                dto.setName((String) setMap.get("name"));
+                dto.setYear((Integer) setMap.get("year"));
+                dto.setNumParts((Integer) setMap.get("num_parts"));
+                dto.setSetImgUrl((String) setMap.get("set_img_url"));
+                dto.setSetUrl((String) setMap.get("set_url"));
+                dto.setEstimatedPrice(fetchPriceFromBrickset(dto.getSetId()));
+                return dto;
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching set details: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public List<Map<String, Object>> getSetPieces(String setId) {
+        String formattedId = setId.contains("-") ? setId : setId + "-1";
+        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + formattedId + "/parts/?page_size=100";
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "key " + rebrickableKey);
+        headers.set("Accept", "application/json");
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                return (List<Map<String, Object>>) response.getBody().get("results");
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching set pieces: " + e.getMessage());
+        }
+        return new ArrayList<>();
+    }
+
+    public List<Map<String, Object>> getThemes() {
+        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/themes/?page_size=1000";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "key " + rebrickableKey);
+        headers.set("Accept", "application/json");
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                return (List<Map<String, Object>>) response.getBody().get("results");
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching themes: " + e.getMessage());
+        }
+        return new ArrayList<>();
     }
 }

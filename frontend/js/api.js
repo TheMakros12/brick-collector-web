@@ -1,6 +1,8 @@
 const API = {
+    // API_BASE is the URL of our SpringBoot backend (ready for future)
+    API_BASE: 'http://localhost:8080/api/catalog',
+    
     REBRICKABLE_KEY: 'f138411743940f84bc3cd94fbdc27848',
-    BRICKSET_KEY: '3-W4P3-9bW4',
     
     // Categories mappings that the user wants
     CATEGORIES: [
@@ -16,30 +18,6 @@ const API = {
     ],
     
     _themesMap: null,
-
-    async loadAllThemes() {
-        const cached = localStorage.getItem('rebrickable_themes');
-        if (cached) {
-            this._themesMap = JSON.parse(cached);
-            return;
-        }
-        // Fetch all themes from API in the background
-        const data = await this.fetchRebrickable('/themes/?page_size=1000');
-        if (data && data.results) {
-            const map = {};
-            data.results.forEach(t => map[t.id] = t.name);
-            this._themesMap = map;
-            localStorage.setItem('rebrickable_themes', JSON.stringify(map));
-        }
-    },
-
-    getThemeName(id) {
-        if (this._themesMap && this._themesMap[id]) {
-            return this._themesMap[id];
-        }
-        const cat = this.CATEGORIES.find(c => c.rebrickableId == id);
-        return cat ? cat.name : `Tema ${id}`;
-    },
 
     async fetchRebrickable(endpoint) {
         try {
@@ -57,36 +35,84 @@ const API = {
         }
     },
 
+    async loadAllThemes() {
+        const cached = localStorage.getItem('rebrickable_themes');
+        if (cached) {
+            this._themesMap = JSON.parse(cached);
+            return;
+        }
+        const data = await this.fetchRebrickable('/themes/?page_size=1000');
+        if (data && data.results) {
+            const map = {};
+            data.results.forEach(t => map[t.id] = t.name);
+            this._themesMap = map;
+            localStorage.setItem('rebrickable_themes', JSON.stringify(map));
+        }
+    },
+
+    getThemeName(id) {
+        if (this._themesMap && this._themesMap[id]) {
+            return this._themesMap[id];
+        }
+        const cat = this.CATEGORIES.find(c => c.rebrickableId == id);
+        return cat ? cat.name : `Tema ${id}`;
+    },
+
     async searchSets(query, categoryId = null, page = 1) {
-        // If we have a query, search by it. Otherwise just list from category
-        let endpoint = `/sets/?page_size=30&ordering=-year&page=${page}`;
+        let setsEndpoint = `/sets/?page_size=30&ordering=-year&page=${page}`;
+        let figsEndpoint = `/minifigs/?page_size=30&page=${page}`;
+        
         if (query) {
-            endpoint += `&search=${encodeURIComponent(query)}`;
+            const enc = encodeURIComponent(query);
+            setsEndpoint += `&search=${enc}`;
+            figsEndpoint += `&search=${enc}`;
         }
         
         if (categoryId) {
             const category = this.CATEGORIES.find(c => c.id === categoryId);
             if (category && category.rebrickableId) {
-                endpoint += `&theme_id=${category.rebrickableId}`;
+                setsEndpoint += `&theme_id=${category.rebrickableId}`;
             }
         }
         
-        const data = await this.fetchRebrickable(endpoint);
-        if (data && data.results) {
-            // Fetch prices for all results asynchronously
-            const setsWithPrices = await Promise.all(data.results.map(async (set) => {
-                const price = await this.getEstimatedPrice(set.set_num, set.num_parts);
+        let allResults = [];
+        
+        try {
+            const setsData = await this.fetchRebrickable(setsEndpoint);
+            if (setsData && setsData.results) {
+                allResults = allResults.concat(setsData.results);
+            }
+            
+            if (query && !categoryId) {
+                const figsData = await this.fetchRebrickable(figsEndpoint);
+                if (figsData && figsData.results) {
+                    allResults = allResults.concat(figsData.results);
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        if (allResults.length > 0) {
+            const setsWithPrices = await Promise.all(allResults.map(async (set) => {
+                const price = await this.getEstimatedPrice(set.set_num, set.num_parts || 4);
                 return { ...set, estimated_price: price };
             }));
+            
+            setsWithPrices.sort((a, b) => (b.year || 9999) - (a.year || 9999));
             return setsWithPrices;
         }
         return [];
     },
 
     async getSetDetails(setId) {
-        // Allow user to type 42115 without the -1
-        const formattedId = setId.includes('-') ? setId : `${setId}-1`;
-        const data = await this.fetchRebrickable(`/sets/${formattedId}/`);
+        let endpoint = `/sets/${setId}/`;
+        if (setId.startsWith('fig-')) {
+            endpoint = `/minifigs/${setId}/`;
+        } else if (!setId.includes('-')) {
+            endpoint = `/sets/${setId}-1/`;
+        }
+        const data = await this.fetchRebrickable(endpoint);
         if (data) {
             data.estimated_price = await this.getEstimatedPrice(data.set_num, data.num_parts);
         }
@@ -95,13 +121,26 @@ const API = {
 
     async getSetPieces(setId) {
         const formattedId = setId.includes('-') ? setId : `${setId}-1`;
-        const data = await this.fetchRebrickable(`/sets/${formattedId}/parts/?page_size=100`);
-        return data ? data.results : [];
+        let allPieces = [];
+        let endpoint = `/sets/${formattedId}/parts/?page_size=1000`;
+        
+        while (endpoint) {
+            const data = await this.fetchRebrickable(endpoint);
+            if (data && data.results) {
+                allPieces = allPieces.concat(data.results);
+                if (data.next) {
+                    endpoint = data.next.replace('https://rebrickable.com/api/v3/lego', '');
+                } else {
+                    endpoint = null;
+                }
+            } else {
+                endpoint = null;
+            }
+        }
+        return allPieces;
     },
 
     async getEstimatedPrice(setId, numParts) {
-        // Brickset API usually requires CORS proxy or server-side.
-        // We fallback to the internal algorithm as requested:
         if (!numParts || numParts === 0) return 0;
         const estimate = numParts * 0.105; 
         return parseFloat(estimate.toFixed(2));

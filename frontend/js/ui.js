@@ -32,7 +32,27 @@ const UI = {
     createLegoCard(set, type) {
         const imageUrl = set.set_img_url || 'https://via.placeholder.com/150?text=No+Image';
         const pieces = set.num_parts || 0;
-        const price = set.estimated_price ? `€${set.estimated_price}` : 'N/A';
+        const price = set.estimated_price ? `${set.estimated_price}€` : 'N/A';
+
+        // --- Retirement alert (Wishlist only) ---
+        let retirementBadge = '';
+        if (type === 'wishlist' && set.year) {
+            const currentYear = new Date().getFullYear();
+            const age = currentYear - set.year;
+            if (age >= 4) {
+                retirementBadge = `
+                    <div class="retirement-badge retirement-retired">
+                        <i data-lucide="alert-circle" style="width:12px;height:12px;flex-shrink:0;"></i>
+                        Posiblemente retirado
+                    </div>`;
+            } else if (age >= 2) {
+                retirementBadge = `
+                    <div class="retirement-badge retirement-risk">
+                        <i data-lucide="alert-triangle" style="width:12px;height:12px;flex-shrink:0;"></i>
+                        En riesgo de retirarse
+                    </div>`;
+            }
+        }
         
         let actionsHtml = '';
         if (type === 'search') {
@@ -65,13 +85,14 @@ const UI = {
             <div class="set-card" data-id="${set.set_num}">
                 <div class="set-image-container" onclick="App.openSetDetails('${set.set_num}')">
                     <img src="${imageUrl}" alt="${set.name}" loading="lazy">
+                    ${retirementBadge}
                 </div>
                 <div class="set-info">
                     <div class="set-id tech-text">${set.set_num.split('-')[0]}</div>
                     <div class="set-name">${set.name}</div>
                     <div class="set-meta">
                         <span><i data-lucide="box" style="width:14px"></i> ${pieces}</span>
-                        <span><i data-lucide="dollar-sign" style="width:14px"></i> ${price}</span>
+                        <span><i data-lucide="coins" style="width:14px"></i> ${price}</span>
                     </div>
                     <div class="set-actions flex-column">
                         ${actionsHtml}
@@ -80,6 +101,7 @@ const UI = {
             </div>
         `;
     },
+
 
     showModal(contentHtml) {
         const container = document.getElementById('modal-container');
@@ -117,9 +139,9 @@ const UI = {
             const pYear = purchase.purchaseYear || currentYear;
             
             purchaseHtml = `
-                <div class="modal-section mt-4">
-                    <div class="modal-section-title"><i data-lucide="credit-card"></i> Mi Compra</div>
-                    <div class="input-group mb-3">
+                <div class="modal-section" style="margin: 0; display: flex; flex-direction: column; gap: 12px; height: 100%;">
+                    <div class="modal-section-title" style="margin-bottom: 5px;"><i data-lucide="credit-card"></i> Mi Compra</div>
+                    <div class="input-group">
                         <label>Método de Adquisición</label>
                         <select id="purchase-type" class="input-field" onchange="document.getElementById('purchase-price-group').style.display = this.value === 'gift' ? 'none' : 'block'">
                             <option value="self" ${purchase.type === 'self' ? 'selected' : ''}>🛍️ Comprado por mí</option>
@@ -127,15 +149,21 @@ const UI = {
                             <option value="partial" ${purchase.type === 'partial' ? 'selected' : ''}>🤝 Pago compartido / Segunda mano</option>
                         </select>
                     </div>
-                    <div class="input-group mb-3" id="purchase-price-group" style="display: ${purchase.type === 'gift' ? 'none' : 'block'};">
-                        <label>Precio Pagado (€)</label>
+                    <div class="input-group" id="purchase-price-group" style="display: ${purchase.type === 'gift' ? 'none' : 'block'};">
+                        <label>Precio Pagado por Mí (€)</label>
                         <input type="number" id="purchase-price" class="input-field" step="0.01" value="${purchase.pricePaid}">
                     </div>
-                    <div class="input-group mb-3">
+                    <div class="input-group">
+                        <label>Precio Oficial del Set / MSRP (€)</label>
+                        <input type="number" id="purchase-retail" class="input-field" step="0.01" value="${purchase.retailPrice || ''}">
+                    </div>
+                    <div class="input-group">
                         <label>Año de Compra</label>
                         <input type="number" id="purchase-year" class="input-field" value="${pYear}" min="1900" max="2100">
                     </div>
-                    <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Detalles</button>
+                    <div style="margin-top: auto; padding-top: 10px;">
+                        <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Detalles</button>
+                    </div>
                 </div>
             `;
 
@@ -164,8 +192,8 @@ const UI = {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                 
                 <!-- LEFT COLUMN -->
-                <div>
-                    <div class="modal-section">
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div class="modal-section" style="margin: 0;">
                         <div class="modal-section-title"><i data-lucide="info"></i> Datos del Mercado</div>
                         <div class="stat-grid" style="margin-bottom: 0;">
                             <div class="stat-card" style="padding: 15px;">
@@ -187,7 +215,7 @@ const UI = {
                 </div>
 
                 <!-- RIGHT COLUMN -->
-                <div>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
                     ${purchaseHtml}
                 </div>
             </div>
@@ -212,28 +240,67 @@ const UI = {
 
     renderPiecesList(pieces) {
         if (!pieces || pieces.length === 0) {
-            UI.showModal('<div class="text-center p-4">No se encontraron piezas.</div>');
+            UI.showModal('<div class="text-center p-4"><i data-lucide="package-open" style="width:48px;height:48px;margin-bottom:10px;opacity:0.5;"></i><br>No se encontraron piezas.</div>');
+            lucide.createIcons();
             return;
         }
 
+        const totalPieces = pieces.reduce((sum, p) => sum + p.quantity, 0);
+
+        // Obtener lista única de colores
+        const uniqueColors = [...new Set(pieces.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
+        const colorOptions = uniqueColors.map(c => `<option value="${c}">${c}</option>`).join('');
+
         const piecesHtml = pieces.map(p => {
-            const img = p.part.part_img_url || 'https://via.placeholder.com/50?text=?';
+            const img = p.part.part_img_url || 'https://via.placeholder.com/100?text=?';
+            const colorName = p.color && p.color.name ? p.color.name : 'Unknown';
+            
             return `
-                <div class="piece-card">
-                    <img src="${img}" alt="${p.part.name}" loading="lazy">
-                    <div style="font-size: 0.75rem; color: var(--accent); font-weight: bold;">${p.quantity}x</div>
-                    <div class="tech-text" style="font-size: 0.65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">${p.part.part_num}</div>
+                <div class="piece-card" data-color="${colorName.replace(/"/g, '&quot;')}" style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; gap: 8px;">
+                    <img src="${img}" alt="${p.part.name}" loading="lazy" style="width: 75px; height: 75px; object-fit: contain; mix-blend-mode: multiply;">
+                    <div style="width: 100%;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-weight: bold;">${p.quantity}x</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 3px;">${colorName}</div>
+                        <div class="tech-text" style="font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-top: 2px;" title="${p.part.name}">${p.part.part_num}</div>
+                    </div>
                 </div>
             `;
         }).join('');
 
         const content = `
-            <h2 class="mb-4">Piezas del Set</h2>
-            <div class="grid-pieces" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; padding-right: 40px;">
+                <div style="flex: 1;">
+                    <h2 style="margin: 0 0 10px 0; font-family: 'Space Grotesk', sans-serif;">Inventario de Piezas</h2>
+                    <div style="max-width: 300px;">
+                        <select class="input-field" style="width: 100%; cursor: pointer;" onchange="UI.filterPiecesByColor(this.value)">
+                            <option value="all">Todos los colores</option>
+                            ${colorOptions}
+                        </select>
+                    </div>
+                </div>
+                <div style="text-align: right; min-width: 120px;">
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 1.25rem; font-weight: bold; color: var(--accent); line-height: 1;">${totalPieces}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Piezas Totales</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; max-height: 60vh; overflow-y: auto; padding-right: 10px;" class="custom-scrollbar">
                 ${piecesHtml}
             </div>
         `;
 
         UI.showModal(content);
+        lucide.createIcons();
+    },
+
+    filterPiecesByColor(color) {
+        const cards = document.querySelectorAll('.piece-card[data-color]');
+        cards.forEach(card => {
+            if (color === 'all' || card.getAttribute('data-color') === color) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
     }
 };

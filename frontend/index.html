@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickCollector Dashboard</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,6 +28,7 @@
     
     <!-- Chart.js for Profile -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 </head>
 <body>
     <div id="app-container">
@@ -43,6 +45,10 @@
                 <button class="nav-btn" data-view="collection">
                     <i data-lucide="layers"></i>
                     <span>Mis Legos</span>
+                </button>
+                <button class="nav-btn" data-view="pieces">
+                    <i data-lucide="puzzle"></i>
+                    <span>Mis Piezas</span>
                 </button>
                 <button class="nav-btn" data-view="profile">
                     <i data-lucide="user"></i>
