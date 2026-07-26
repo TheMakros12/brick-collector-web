@@ -25,8 +25,9 @@ public class CatalogController {
      * Ejemplo de uso desde js/api.js: fetch('http://localhost:8080/api/catalog/search?q=porsche')
      */
     @GetMapping("/search")
-    public List<LegoSetDTO> search(@RequestParam(required = false) String q) {
-        return catalogService.searchSets(q);
+    public List<LegoSetDTO> search(@RequestParam(required = false) String q, 
+                                   @RequestParam(required = false) Integer themeId) {
+        return catalogService.searchSets(q, themeId);
     }
 
     @GetMapping("/details/{setId}")

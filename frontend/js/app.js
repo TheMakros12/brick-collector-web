@@ -10,7 +10,8 @@ const App = {
         tab: 'collection', // or 'wishlist'
         searchQuery: '',
         sortBy: 'default',
-        themeFilter: 'all'
+        themeFilter: 'all',
+        yearFilter: 'all'
     },
     myPiecesState: {
         allPieces: null,          // cache: null = not loaded, [] = loaded
@@ -102,15 +103,28 @@ const App = {
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
+            const originalText = btn.innerHTML;
             btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Cargando datos...';
             lucide.createIcons();
-            const user = {
-                name: document.getElementById('login-name').value,
-                lastName: document.getElementById('login-last').value,
-                email: document.getElementById('login-email').value,
-            };
-            await Storage.saveUser(user);
-            App.navigate('search');
+            const email = document.getElementById('login-email').value;
+            // Hack: As password we'll send email for now just to make it work, 
+            // since the previous UI didn't have password. The user can recreate users.
+            try {
+                await Storage.login(email, "root");
+                App.navigate('search');
+            } catch (error) {
+                // Try registering if login fails
+                const name = document.getElementById('login-name').value;
+                const lastName = document.getElementById('login-last').value;
+                try {
+                    await Storage.register(name, lastName, email, "root");
+                    await Storage.login(email, "root");
+                    App.navigate('search');
+                } catch(e) {
+                    btn.innerHTML = originalText;
+                    alert("Error: " + e.message);
+                }
+            }
         });
     },
 
@@ -216,20 +230,19 @@ const App = {
     },
 
     // --- ACTIONS FROM CARDS ---
-    addFromSearch(setId, target) {
+    async addFromSearch(setId, target) {
         const set = this.searchState.results.find(s => s.set_num === setId);
         if (set) {
             if (target === 'collection') {
-                const added = Storage.addToCollection(set);
-                if (added) {
-                    this.myPiecesState.allPieces = null; // invalidate pieces cache
-                    UI.showToast('Añadido a Colección', 'success');
-                    // Automatically open the details modal so they can fill purchase info
-                    App.openSetDetails(setId);
+                const exists = Storage.getCollection().find(s => s.set_num === set.set_num);
+                if (exists) {
+                    UI.showToast('El set ya está en tu colección', 'info');
+                } else {
+                    this.pendingAddSet = set; // Store temporarily for modal
+                    App.openSetDetails(setId, true);
                 }
-                else UI.showToast('El set ya está en tu colección', 'info');
             } else {
-                const added = Storage.addToWishlist(set);
+                const added = await Storage.addToWishlist(set);
                 if (added) UI.showToast('Añadido a Lista de Deseos', 'success');
                 else UI.showToast('El set ya está en tu lista de deseos', 'info');
             }
@@ -262,6 +275,12 @@ const App = {
             `<option value="${id}" ${this.collectionState.themeFilter == id ? 'selected' : ''}>${API.getThemeName(id)}</option>`
         ).join('');
 
+        // Calculate unique purchase years
+        const uniqueYears = [...new Set(items.map(i => i.purchaseDetails && i.purchaseDetails.purchaseYear).filter(y => y))].sort((a,b) => b - a);
+        const yearOptions = uniqueYears.map(y => 
+            `<option value="${y}" ${this.collectionState.yearFilter == y ? 'selected' : ''}>Comprado en ${y}</option>`
+        ).join('');
+
         container.innerHTML = `
             <div class="view-container">
                 <h2 class="mb-4">Mis Legos</h2>
@@ -273,12 +292,16 @@ const App = {
                 <div class="flex gap-2 mb-2">
                     <input type="text" id="local-search" class="input-field flex-1" placeholder="Buscar..." value="${this.collectionState.searchQuery}" onkeyup="App.updateCollectionSearch(this.value)">
                 </div>
-                <div class="flex gap-2 mb-4">
-                    <select id="local-theme" class="input-field flex-1" onchange="App.updateCollectionThemeFilter(this.value)">
+                <div class="flex gap-2 mb-4" style="flex-wrap: wrap;">
+                    <select id="local-theme" class="input-field flex-1" onchange="App.updateCollectionThemeFilter(this.value)" style="min-width: 140px;">
                         <option value="all">Todas las categorías</option>
                         ${themeOptions}
                     </select>
-                    <select id="local-sort" class="input-field flex-1" onchange="App.updateCollectionSort(this.value)">
+                    <select id="local-year" class="input-field flex-1" onchange="App.updateCollectionYearFilter(this.value)" style="min-width: 140px;">
+                        <option value="all">Cualquier año</option>
+                        ${yearOptions}
+                    </select>
+                    <select id="local-sort" class="input-field flex-1" onchange="App.updateCollectionSort(this.value)" style="min-width: 140px;">
                         <option value="default" ${this.collectionState.sortBy === 'default' ? 'selected' : ''}>Orden Original</option>
                         <option value="pieces" ${this.collectionState.sortBy === 'pieces' ? 'selected' : ''}>+ Piezas</option>
                         <option value="price" ${this.collectionState.sortBy === 'price' ? 'selected' : ''}>+ Precio</option>
@@ -321,6 +344,10 @@ const App = {
             filteredItems = filteredItems.filter(i => i.theme_id == this.collectionState.themeFilter);
         }
         
+        if (this.collectionState.yearFilter && this.collectionState.yearFilter !== 'all') {
+            filteredItems = filteredItems.filter(i => i.purchaseDetails && i.purchaseDetails.purchaseYear == this.collectionState.yearFilter);
+        }
+        
         if (this.collectionState.sortBy === 'pieces') {
             filteredItems.sort((a,b) => (b.num_parts || 0) - (a.num_parts || 0));
         } else if (this.collectionState.sortBy === 'price') {
@@ -350,26 +377,30 @@ const App = {
         this.collectionState.themeFilter = val;
         this.updateCollectionListOnly();
     },
+    updateCollectionYearFilter(val) {
+        this.collectionState.yearFilter = val;
+        this.updateCollectionListOnly();
+    },
 
-    removeFromCollection(setId) {
+    async removeFromCollection(setId) {
         if(confirm("¿Eliminar de la colección?")) {
-            Storage.removeFromCollection(setId);
+            await Storage.removeFromCollection(setId);
             this.myPiecesState.allPieces = null; // invalidate pieces cache
             this.renderCollection(document.getElementById('main-content'));
             lucide.createIcons();
         }
     },
-    removeFromWishlist(setId) {
+    async removeFromWishlist(setId) {
         if(confirm("¿Eliminar de la lista de deseos?")) {
-            Storage.removeFromWishlist(setId);
+            await Storage.removeFromWishlist(setId);
             this.renderCollection(document.getElementById('main-content'));
             lucide.createIcons();
         }
     },
-    moveWishlistToCollection(setId) {
+    async moveWishlistToCollection(setId) {
         const set = Storage.getWishlist().find(s => s.set_num === setId);
         if (set) {
-            Storage.moveToCollection(set);
+            await Storage.moveToCollection(set);
             this.renderCollection(document.getElementById('main-content'));
             lucide.createIcons();
             UI.showToast("Añadido a tu colección", "success");
@@ -1169,18 +1200,21 @@ const App = {
     },
 
     // --- MODALS (SET DETAILS & BUILD TRACKER) ---
-    async openSetDetails(setId) {
+    async openSetDetails(setId, forceNewPurchase = false) {
         // Try to get from collection first
         let set = Storage.getCollection().find(s => s.set_num === setId);
         let inCol = true;
         
         if (!set) {
-            inCol = false;
+            inCol = forceNewPurchase; // If true, we show purchase details anyway
             // Try wishlist
             set = Storage.getWishlist().find(s => s.set_num === setId);
             if (!set) {
                 // Must be from search results
                 set = this.searchState.results.find(s => s.set_num === setId);
+            }
+            if (!set && this.pendingAddSet && this.pendingAddSet.set_num === setId) {
+                set = this.pendingAddSet;
             }
         }
 
@@ -1189,20 +1223,56 @@ const App = {
         }
     },
 
-    savePurchaseDetails(setId) {
+    handlePurchaseTypeChange(selectElem, estimatedPrice) {
+        const group = document.getElementById('purchase-price-group');
+        const priceInput = document.getElementById('purchase-price');
+        
+        if (selectElem.value === 'gift') {
+            group.style.display = 'none';
+            priceInput.value = 0;
+        } else {
+            group.style.display = 'block';
+            if (selectElem.value === 'self') {
+                priceInput.value = estimatedPrice;
+            } else if (selectElem.value === 'partial') {
+                priceInput.value = '';
+            }
+        }
+    },
+
+    async savePurchaseDetails(setId) {
         const type = document.getElementById('purchase-type').value;
         const price = parseFloat(document.getElementById('purchase-price').value) || 0;
         const year = parseInt(document.getElementById('purchase-year').value) || new Date().getFullYear();
+        const retail = parseFloat(document.getElementById('purchase-retail').value) || null;
 
-        const set = Storage.getCollection().find(s => s.set_num === setId);
+        let set = Storage.getCollection().find(s => s.set_num === setId);
+        let isNew = false;
+        
+        if (!set && this.pendingAddSet && this.pendingAddSet.set_num === setId) {
+            set = this.pendingAddSet;
+            isNew = true;
+        }
+
         if (set) {
             set.purchaseDetails = {
                 type: type,
                 pricePaid: type === 'gift' ? 0 : price,
+                retailPrice: retail,
                 purchaseYear: year
             };
-            Storage.updateSetInCollection(set);
-            UI.showToast("Datos de compra guardados", "success");
+            
+            if (isNew) {
+                const added = await Storage.addToCollection(set);
+                if(added) {
+                    this.pendingAddSet = null;
+                    this.myPiecesState.allPieces = null;
+                    UI.showToast("Añadido a Colección con datos de compra", "success");
+                }
+            } else {
+                Storage.updateSetInCollection(set);
+                UI.showToast("Datos de compra actualizados", "success");
+            }
             UI.renderSetDetails(set, true);
         }
     },

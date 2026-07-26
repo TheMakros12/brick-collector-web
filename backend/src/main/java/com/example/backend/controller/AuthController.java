@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
+import com.example.backend.security.JwtUtil;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -14,9 +17,11 @@ import java.util.Optional;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtUtil jwtUtil;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, JwtUtil jwtUtil) {
         this.authService = authService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/register")
@@ -31,10 +36,16 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        Optional<User> user = authService.login(request.getEmail(), request.getPassword());
-        if (user.isPresent()) {
-            // TODO: En una app completa con JWT, aquí se genera y devuelve un token String en lugar del usuario completo.
-            return ResponseEntity.ok(user.get()); 
+        Optional<User> userOpt = authService.login(request.getEmail(), request.getPassword());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String token = jwtUtil.generateToken(user.getEmail(), user.getId());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("user", user);
+            
+            return ResponseEntity.ok(response); 
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales incorrectas");
         }

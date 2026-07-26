@@ -29,4 +29,7 @@ public class LegoSetDTO {
     
     @JsonProperty("estimated_price")
     private Double estimatedPrice; // El precio real sacado de Brickset en Euros
+
+    @JsonProperty("theme_id")
+    private Integer themeId;       // El ID de categoría (necesario para el filtro)
 }

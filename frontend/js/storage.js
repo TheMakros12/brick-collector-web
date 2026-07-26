@@ -1,128 +1,177 @@
-const firebaseConfig = {
-    apiKey: "AIzaSyAvD6-XI9Xx1Rv9NAX2aVxK5eSFxjsNwPc",
-    authDomain: "brickcollectorweb.firebaseapp.com",
-    projectId: "brickcollectorweb",
-    storageBucket: "brickcollectorweb.firebasestorage.app",
-    messagingSenderId: "779926840422",
-    appId: "1:779926840422:web:b25044c02fb4a0f11eb9a7"
-};
-
-let db = null;
-try {
-    if (firebaseConfig.apiKey && window.firebase) {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        console.log("Firebase activado y listo.");
-    } else {
-        console.warn("Firebase no está configurado. Usando LocalStorage en modo offline. Abre js/storage.js para poner tus claves.");
-    }
-} catch (e) {
-    console.error("Error iniciando Firebase:", e);
-}
-
-function syncToFirebase() {
-    if (!db) return;
-    const user = Storage.getUser();
-    if (!user || !user.email) return;
-
-    const col = Storage.getCollection();
-    const wish = Storage.getWishlist();
-
-    // Asincrono sin bloquear la UI
-    db.collection('users').doc(user.email).set({
-        profile: user,
-        collection: col,
-        wishlist: wish,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(e => console.error("Error sincronizando a Firebase:", e));
-}
-
 const Storage = {
     USER_KEY: 'brickcollector_user',
+    TOKEN_KEY: 'brickcollector_token',
     COLLECTION_KEY: 'brickcollector_collection',
     WISHLIST_KEY: 'brickcollector_wishlist',
 
     // User Data
     getUser: () => JSON.parse(localStorage.getItem(Storage.USER_KEY)),
-    saveUser: async (user) => {
-        localStorage.setItem(Storage.USER_KEY, JSON.stringify(user));
-        // Intentar descargar datos si existen en Firebase
-        if (db) {
-            try {
-                const doc = await db.collection('users').doc(user.email).get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    if (data.collection) localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(data.collection));
-                    if (data.wishlist) localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(data.wishlist));
-                }
-            } catch (e) {
-                console.error("Error descargando desde Firebase:", e);
-            }
+    
+    // Auth methods
+    async login(email, password) {
+        try {
+            const response = await fetch('http://localhost:8080/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (!response.ok) throw new Error('Credenciales incorrectas');
+            
+            const data = await response.json();
+            localStorage.setItem(Storage.TOKEN_KEY, data.token);
+            localStorage.setItem(Storage.USER_KEY, JSON.stringify(data.user));
+            
+            // Sync after login
+            await this.syncFromBackend();
+            return data.user;
+        } catch (e) {
+            console.error("Login Error:", e);
+            throw e;
         }
     },
-    clearUser: () => localStorage.removeItem(Storage.USER_KEY),
+    
+    async register(name, lastName, email, password) {
+        try {
+            const response = await fetch('http://localhost:8080/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, lastName, email, password })
+            });
+            if (!response.ok) throw new Error('Error al registrar');
+            return await response.json();
+        } catch (e) {
+            throw e;
+        }
+    },
+    
+    logout() {
+        localStorage.removeItem(Storage.USER_KEY);
+        localStorage.removeItem(Storage.TOKEN_KEY);
+        localStorage.removeItem(Storage.COLLECTION_KEY);
+        localStorage.removeItem(Storage.WISHLIST_KEY);
+    },
+
+    // Sync methods
+    async syncFromBackend() {
+        if (!localStorage.getItem(Storage.TOKEN_KEY)) return;
+        try {
+            const colResponse = await API.fetchBackend('/collection/?type=COLLECTION');
+            const wishResponse = await API.fetchBackend('/collection/?type=WISHLIST');
+            
+            const fullCol = await Promise.all((colResponse || []).map(async item => {
+                const details = await API.getSetDetails(item.setId);
+                return { ...details, itemId: item.id, addedAt: item.addedAt, buildTracker: item.buildTracker };
+            }));
+            
+            const fullWish = await Promise.all((wishResponse || []).map(async item => {
+                const details = await API.getSetDetails(item.setId);
+                return { ...details, itemId: item.id, addedAt: item.addedAt };
+            }));
+            
+            localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(fullCol));
+            localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(fullWish));
+        } catch (e) {
+            console.error("Error sincronizando del backend", e);
+        }
+    },
 
     // Collection
     getCollection: () => JSON.parse(localStorage.getItem(Storage.COLLECTION_KEY)) || [],
-    saveCollection: (collection) => {
-        localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(collection));
-        syncToFirebase();
-    },
-    addToCollection: (set) => {
+    
+    addToCollection: async (set) => {
         const collection = Storage.getCollection();
         if (!collection.find(s => s.set_num === set.set_num)) {
+            // Optimistic update
             set.buildTracker = { active: false, totalBags: 0, currentBag: 0, startDate: null, endDate: null };
             set.addedAt = new Date().toISOString();
             collection.push(set);
-            Storage.saveCollection(collection);
+            localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(collection));
+            
+            if (localStorage.getItem(Storage.TOKEN_KEY)) {
+                try {
+                    const saved = await API.fetchBackend('/collection/add', {
+                        method: 'POST',
+                        body: JSON.stringify({ setId: set.set_num, type: 'COLLECTION' })
+                    });
+                    // Update the set with backend's DB itemId
+                    set.itemId = saved.id;
+                    localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(collection));
+                } catch(e) { console.error(e); }
+            }
             return true;
         }
         return false;
     },
-    removeFromCollection: (setId) => {
-        const collection = Storage.getCollection().filter(s => s.set_num !== setId);
-        Storage.saveCollection(collection);
+    
+    removeFromCollection: async (setId) => {
+        let collection = Storage.getCollection();
+        const set = collection.find(s => s.set_num === setId);
+        collection = collection.filter(s => s.set_num !== setId);
+        localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(collection));
+        
+        if (localStorage.getItem(Storage.TOKEN_KEY) && set && set.itemId) {
+            try {
+                await API.fetchBackend(`/collection/remove/${set.itemId}`, { method: 'DELETE' });
+            } catch(e) { console.error(e); }
+        }
     },
+
     updateSetInCollection: (updatedSet) => {
         const collection = Storage.getCollection();
         const index = collection.findIndex(s => s.set_num === updatedSet.set_num);
         if (index !== -1) {
             collection[index] = updatedSet;
-            Storage.saveCollection(collection);
+            localStorage.setItem(Storage.COLLECTION_KEY, JSON.stringify(collection));
+            // TODO: si backend soportara updateBuildTracker, llamaríamos a la API aquí.
         }
     },
 
     // Wishlist
     getWishlist: () => JSON.parse(localStorage.getItem(Storage.WISHLIST_KEY)) || [],
-    saveWishlist: (wishlist) => {
-        localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(wishlist));
-        syncToFirebase();
-    },
-    addToWishlist: (set) => {
+    
+    addToWishlist: async (set) => {
         const wishlist = Storage.getWishlist();
         if (!wishlist.find(s => s.set_num === set.set_num)) {
             set.addedAt = new Date().toISOString();
             wishlist.push(set);
-            Storage.saveWishlist(wishlist);
+            localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(wishlist));
+            
+            if (localStorage.getItem(Storage.TOKEN_KEY)) {
+                try {
+                    const saved = await API.fetchBackend('/collection/add', {
+                        method: 'POST',
+                        body: JSON.stringify({ setId: set.set_num, type: 'WISHLIST' })
+                    });
+                    set.itemId = saved.id;
+                    localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(wishlist));
+                } catch(e) { console.error(e); }
+            }
             return true;
         }
         return false;
     },
-    removeFromWishlist: (setId) => {
-        const wishlist = Storage.getWishlist().filter(s => s.set_num !== setId);
-        Storage.saveWishlist(wishlist);
+    
+    removeFromWishlist: async (setId) => {
+        let wishlist = Storage.getWishlist();
+        const set = wishlist.find(s => s.set_num === setId);
+        wishlist = wishlist.filter(s => s.set_num !== setId);
+        localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(wishlist));
+        
+        if (localStorage.getItem(Storage.TOKEN_KEY) && set && set.itemId) {
+            try {
+                await API.fetchBackend(`/collection/remove/${set.itemId}`, { method: 'DELETE' });
+            } catch(e) { console.error(e); }
+        }
     },
-    moveToCollection: (set) => {
-        const wishlist = Storage.getWishlist().filter(s => s.set_num !== set.set_num);
-        localStorage.setItem(Storage.WISHLIST_KEY, JSON.stringify(wishlist)); // bypass syncToFirebase for atomic save
-        const added = Storage.addToCollection(set); // This will trigger sync
-        return added;
+    
+    moveToCollection: async (set) => {
+        await Storage.removeFromWishlist(set.set_num);
+        return await Storage.addToCollection(set);
     },
 
     // Danger Zone
     clearAll: () => {
-        localStorage.removeItem(Storage.COLLECTION_KEY);
-        localStorage.removeItem(Storage.WISHLIST_KEY);
-        syncToFirebase();
+        Storage.logout();
     }
 };

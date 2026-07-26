@@ -126,7 +126,7 @@ const UI = {
 
     renderSetDetails(set, isInCollection) {
         const imageUrl = set.set_img_url || 'https://via.placeholder.com/300?text=No+Image';
-        const purchase = set.purchaseDetails || { type: 'self', pricePaid: '', notes: '' };
+        const purchase = set.purchaseDetails || { type: 'self', pricePaid: set.estimated_price || '', notes: '' };
         
 
 
@@ -143,7 +143,7 @@ const UI = {
                     <div class="modal-section-title" style="margin-bottom: 5px;"><i data-lucide="credit-card"></i> Mi Compra</div>
                     <div class="input-group">
                         <label>Método de Adquisición</label>
-                        <select id="purchase-type" class="input-field" onchange="document.getElementById('purchase-price-group').style.display = this.value === 'gift' ? 'none' : 'block'">
+                        <select id="purchase-type" class="input-field" onchange="App.handlePurchaseTypeChange(this, ${set.estimated_price || 0})">
                             <option value="self" ${purchase.type === 'self' ? 'selected' : ''}>🛍️ Comprado por mí</option>
                             <option value="gift" ${purchase.type === 'gift' ? 'selected' : ''}>🎁 Fue un regalo</option>
                             <option value="partial" ${purchase.type === 'partial' ? 'selected' : ''}>🤝 Pago compartido / Segunda mano</option>
@@ -155,7 +155,7 @@ const UI = {
                     </div>
                     <div class="input-group">
                         <label>Precio Oficial del Set / MSRP (€)</label>
-                        <input type="number" id="purchase-retail" class="input-field" step="0.01" value="${purchase.retailPrice || ''}">
+                        <input type="number" id="purchase-retail" class="input-field" step="0.01" value="${purchase.retailPrice || set.estimated_price || ''}">
                     </div>
                     <div class="input-group">
                         <label>Año de Compra</label>

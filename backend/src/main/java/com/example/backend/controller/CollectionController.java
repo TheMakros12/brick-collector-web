@@ -5,6 +5,7 @@ import com.example.backend.model.entity.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.CollectionService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -22,21 +23,21 @@ public class CollectionController {
         this.userRepository = userRepository;
     }
 
-    // Nota: Recibimos el userId temporalmente hasta que se implemente JWT en el filtro de seguridad
-    @GetMapping("/{userId}")
+    // Nota: El usuario se extrae del token JWT a través del SecurityContext
+    @GetMapping("/")
     public ResponseEntity<List<CollectionItem>> getItems(
-            @PathVariable Long userId,
             @RequestParam(required = false) CollectionItem.ListType type) {
         
+        Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         User user = userRepository.findById(userId).orElseThrow();
         return ResponseEntity.ok(collectionService.getUserItems(user, type));
     }
 
-    @PostMapping("/{userId}/add")
+    @PostMapping("/add")
     public ResponseEntity<?> addSet(
-            @PathVariable Long userId,
             @RequestBody Map<String, String> payload) {
         try {
+            Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             User user = userRepository.findById(userId).orElseThrow();
             String setId = payload.get("setId");
             CollectionItem.ListType type = CollectionItem.ListType.valueOf(payload.get("type").toUpperCase());
@@ -48,11 +49,11 @@ public class CollectionController {
         }
     }
 
-    @DeleteMapping("/{userId}/remove/{itemId}")
+    @DeleteMapping("/remove/{itemId}")
     public ResponseEntity<?> removeSet(
-            @PathVariable Long userId,
             @PathVariable Long itemId) {
         try {
+            Long userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             User user = userRepository.findById(userId).orElseThrow();
             collectionService.removeItem(itemId, user);
             return ResponseEntity.ok("Eliminado correctamente");
