@@ -3,13 +3,13 @@ const API = {
     
     CATEGORIES: [
         { id: 'technic', name: 'Technic', rebrickableId: 1 },
-        { id: 'speed-champions', name: 'Speed Champions', rebrickableId: 601 }, // Was 608 (Disney)
+        { id: 'speed-champions', name: 'Speed Champions', rebrickableId: 601 },
         { id: 'icons', name: 'Icons', rebrickableId: 721 }, 
         { id: 'star-wars', name: 'Star Wars', rebrickableId: 158 },
-        { id: 'botanicals', name: 'Botanicals', rebrickableId: 769 }, // Was 710
+        { id: 'botanicals', name: 'Botanicals', rebrickableId: 769 },
         { id: 'marvel', name: 'Marvel', rebrickableId: 696 }, 
-        { id: 'nike', name: 'Nike', rebrickableId: 785 }, // Was null
-        { id: 'infinity-saga', name: 'The Infinity Saga', rebrickableId: 781 }, // Was 709
+        { id: 'nike', name: 'Nike', rebrickableId: 785 },
+        { id: 'infinity-saga', name: 'The Infinity Saga', rebrickableId: 781 },
         { id: 'pokemon', name: 'Pokemon', rebrickableId: null } 
     ],
     
@@ -17,17 +17,12 @@ const API = {
 
     async fetchBackend(endpoint, options = {}) {
         try {
-            const token = localStorage.getItem('brickcollector_token');
             const headers = {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 ...options.headers
             };
             
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
             const response = await fetch(`${this.API_BASE}${endpoint}`, {
                 ...options,
                 headers
@@ -38,7 +33,13 @@ const API = {
                 throw new Error(text || 'Network response was not ok');
             }
             
-            return await response.json();
+            // Return empty object if no body
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                return await response.json();
+            } else {
+                return await response.text();
+            }
         } catch (error) {
             console.error("Backend API Error:", error);
             throw error;
@@ -55,7 +56,6 @@ const API = {
             const data = await this.fetchBackend('/catalog/themes');
             if (data) {
                 const map = {};
-                // Asumiendo que el backend devuelve [{id, name}, ...]
                 data.forEach(t => map[t.id] = t.name);
                 this._themesMap = map;
                 localStorage.setItem('rebrickable_themes', JSON.stringify(map));

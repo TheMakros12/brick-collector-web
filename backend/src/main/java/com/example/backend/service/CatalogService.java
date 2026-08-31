@@ -1,10 +1,16 @@
 package com.example.backend.service;
 
 import com.example.backend.model.dto.LegoSetDTO;
+import com.example.backend.model.entity.LegoSet;
+import com.example.backend.model.entity.Theme;
+import com.example.backend.repository.LegoSetRepository;
+import com.example.backend.repository.ThemeRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
+
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -13,29 +19,29 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.Optional;
 
-/**
- * Servicio centralizado ("El Motor") que hace el Proxy.
- * Recibe peticiones del frontend, busca en Rebrickable y saca el precio de Brickset.
- */
 @Service
 public class CatalogService {
 
     private final RestTemplate restTemplate;
+    private final LegoSetRepository legoSetRepository;
+    private final ThemeRepository themeRepository;
 
     @Value("${api.rebrickable.key}")
     private String rebrickableKey;
 
-    @Value("${api.brickset.key}")
-    private String bricksetKey;
+    @Value("${api.brickeconomy.key}")
+    private String brickEconomyKey;
 
-    public CatalogService(RestTemplate restTemplate) {
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+
+    public CatalogService(RestTemplate restTemplate, LegoSetRepository legoSetRepository, ThemeRepository themeRepository) {
         this.restTemplate = restTemplate;
+        this.legoSetRepository = legoSetRepository;
+        this.themeRepository = themeRepository;
     }
 
-    /**
-     * Busca sets en Rebrickable y luego obtiene sus precios en Brickset.
-     */
     public List<LegoSetDTO> searchSets(String query, Integer themeId) {
         List<LegoSetDTO> results = new ArrayList<>();
         HttpHeaders headers = new HttpHeaders();
@@ -44,10 +50,8 @@ public class CatalogService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         if (themeId != null) {
-            // Rebrickable doesn't support multiple theme IDs in one request.
-            // We must fetch them concurrently to keep it fast.
             List<Integer> themeIds = getThemeDescendants(themeId);
-            ExecutorService executor = Executors.newFixedThreadPool(Math.min(themeIds.size(), 10)); // Max 10 concurrent to avoid 429
+            ExecutorService executor = Executors.newFixedThreadPool(Math.min(themeIds.size(), 10));
             
             List<CompletableFuture<List<LegoSetDTO>>> futures = themeIds.stream()
                 .map(tid -> CompletableFuture.supplyAsync(() -> fetchSetsFromRebrickable(query, tid, entity), executor))
@@ -67,37 +71,35 @@ public class CatalogService {
             }
             executor.shutdown();
         } else {
-            // Normal search without category
             results.addAll(fetchSetsFromRebrickable(query, null, entity));
         }
 
-        // 1. Filter sets with 0 parts if searching (to avoid stickers/books showing up)
         results = results.stream()
             .filter(dto -> dto.getNumParts() != null && dto.getNumParts() > 0)
             .collect(Collectors.toList());
 
-        // 2. Sort by year descending
         results.sort(Comparator.comparing(LegoSetDTO::getYear, Comparator.nullsLast(Comparator.reverseOrder()))
                                .thenComparing(LegoSetDTO::getNumParts, Comparator.nullsLast(Comparator.reverseOrder())));
 
-        // 3. Limit to top 20
         List<LegoSetDTO> topResults = results.stream().limit(20).collect(Collectors.toList());
 
-        // 4. Fetch prices ONLY for the top 20
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (LegoSetDTO dto : topResults) {
-            Double price = fetchPriceFromBrickset(dto.getSetId());
-            if (price == 0.0 && dto.getNumParts() != null) {
-                price = Math.round(dto.getNumParts() * 0.105 * 100.0) / 100.0;
-            }
-            dto.setEstimatedPrice(price);
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                Double[] prices = fetchPricesFromBrickEconomy(dto.getSetId());
+                dto.setRetailPrice(prices[0]);
+                dto.setMarketValue(prices[1]); // current_value_new
+            }, executorService);
+            futures.add(future);
         }
 
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         return topResults;
     }
 
     private List<LegoSetDTO> fetchSetsFromRebrickable(String query, Integer themeId, HttpEntity<String> entity) {
         String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/?page_size=20&ordering=-year";
-        if (query != null && !query.isEmpty()) {
+        if (query != null && !query.trim().isEmpty()) {
             rebrickableUrl += "&search=" + query;
         }
         if (themeId != null) {
@@ -112,7 +114,7 @@ public class CatalogService {
                 for (Map<String, Object> setMap : sets) {
                     LegoSetDTO dto = new LegoSetDTO();
                     String rawId = (String) setMap.get("set_num");
-                    dto.setSetId(rawId.split("-")[0]);
+                    dto.setSetId(rawId);
                     dto.setName((String) setMap.get("name"));
                     if (setMap.get("year") != null) dto.setYear(((Number) setMap.get("year")).intValue());
                     if (setMap.get("num_parts") != null) dto.setNumParts(((Number) setMap.get("num_parts")).intValue());
@@ -128,58 +130,47 @@ public class CatalogService {
         return list;
     }
 
-    /**
-     * Llama a la API de Brickset usando nuestra Key protegida en el backend
-     * para no sufrir problemas de CORS en el navegador web.
-     */
-    private Double fetchPriceFromBrickset(String setId) {
+    public Double[] fetchPricesFromBrickEconomy(String setId) {
         try {
-            String url = "https://brickset.com/api/v3.asmx/getSets?apiKey={key}&userHash=&params={params}";
-            ResponseEntity<Map> response = restTemplate.getForEntity(
-                url, 
-                Map.class, 
-                bricksetKey, 
-                "{\"setNumber\":\"" + setId + "-1\"}"
-            );
+            String url = "https://www.brickeconomy.com/api/v1/sets/" + setId + "?currency=EUR";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + brickEconomyKey);
+            headers.set("x-api-key", brickEconomyKey); // Attempt both standard patterns
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                List<Map<String, Object>> sets = (List<Map<String, Object>>) response.getBody().get("sets");
-                if (sets != null && !sets.isEmpty()) {
-                    Map<String, Object> setInfo = sets.get(0);
-                    Map<String, Object> legoCom = (Map<String, Object>) setInfo.get("LEGOCom");
-                    if (legoCom != null) {
-                        String[] regions = {"ES", "DE", "FR", "US", "UK"};
-                        for (String region : regions) {
-                            Map<String, Object> regionPrice = (Map<String, Object>) legoCom.get(region);
-                            if (regionPrice != null && regionPrice.get("retailPrice") != null) {
-                                return Double.valueOf(regionPrice.get("retailPrice").toString());
-                            }
-                        }
-                    }
-                }
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> data = response.getBody();
+                Double retail = 0.0;
+                Double current = 0.0;
+                if (data.get("retail_price_eu") != null) retail = ((Number) data.get("retail_price_eu")).doubleValue();
+                if (data.get("current_value_new") != null) current = ((Number) data.get("current_value_new")).doubleValue();
+                return new Double[]{retail, current};
             }
         } catch (Exception e) {
-            System.err.println("Error fetching price from brickset for " + setId + ": " + e.getMessage());
+            System.err.println("Error fetching price from BrickEconomy for " + setId + ": " + e.getMessage());
         }
-        return 0.0; // Fallback si no hay precio oficial
+        return new Double[]{0.0, 0.0};
     }
 
     public LegoSetDTO getSetDetails(String setId) {
-        String formattedId = setId.contains("-") ? setId : setId + "-1";
-        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + formattedId + "/";
-        
+        if (setId != null && !setId.contains("-")) {
+            setId = setId + "-1";
+        }
+
+        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + setId + "/";
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "key " + rebrickableKey);
         headers.set("Accept", "application/json");
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        HttpEntity<String> httpEntity = new HttpEntity<>(headers);
         
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
+            ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, httpEntity, Map.class);
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> setMap = response.getBody();
                 LegoSetDTO dto = new LegoSetDTO();
                 String rawId = (String) setMap.get("set_num");
-                dto.setSetId(rawId.split("-")[0]);
+                dto.setSetId(rawId);
                 dto.setName((String) setMap.get("name"));
                 
                 if (setMap.get("year") != null) dto.setYear(((Number) setMap.get("year")).intValue());
@@ -187,14 +178,15 @@ public class CatalogService {
                 
                 dto.setSetImgUrl((String) setMap.get("set_img_url"));
                 dto.setSetUrl((String) setMap.get("set_url"));
-                
                 if (setMap.get("theme_id") != null) dto.setThemeId(((Number) setMap.get("theme_id")).intValue());
                 
-                Double price = fetchPriceFromBrickset(dto.getSetId());
-                if (price == 0.0 && dto.getNumParts() != null) {
-                    price = Math.round(dto.getNumParts() * 0.105 * 100.0) / 100.0;
-                }
-                dto.setEstimatedPrice(price);
+                Double[] prices = fetchPricesFromBrickEconomy(dto.getSetId());
+                dto.setRetailPrice(prices[0]);
+                dto.setMarketValue(prices[1]);
+
+                // Ensure it exists in the sets table so it can be linked to Collection/Wishlist
+                saveSetToDb(dto);
+
                 return dto;
             }
         } catch (Exception e) {
@@ -203,15 +195,50 @@ public class CatalogService {
         return null;
     }
 
+    private void saveSetToDb(LegoSetDTO dto) {
+        Optional<LegoSet> existing = legoSetRepository.findById(dto.getSetId());
+        if (existing.isEmpty()) {
+            LegoSet set = new LegoSet();
+            set.setId(dto.getSetId());
+            set.setName(dto.getName());
+            set.setPieces(dto.getNumParts());
+            set.setImageUrl(dto.getSetImgUrl());
+            if (dto.getYear() != null) {
+                set.setReleaseDate(LocalDate.of(dto.getYear(), 1, 1));
+            }
+            set.setRetailPrice(dto.getRetailPrice());
+            set.setRetired(false); // Default
+
+            if (dto.getThemeId() != null) {
+                Optional<Theme> theme = themeRepository.findById(dto.getThemeId());
+                if (theme.isPresent()) {
+                    set.setTheme(theme.get());
+                } else {
+                    // Try fetching themes first
+                    getThemes(); 
+                    themeRepository.findById(dto.getThemeId()).ifPresent(set::setTheme);
+                }
+            }
+            legoSetRepository.save(set);
+        } else {
+            // Update retail price if it was 0
+            LegoSet set = existing.get();
+            if ((set.getRetailPrice() == null || set.getRetailPrice() == 0.0) && dto.getRetailPrice() != null && dto.getRetailPrice() > 0) {
+                set.setRetailPrice(dto.getRetailPrice());
+                legoSetRepository.save(set);
+            }
+        }
+    }
+
     public List<Map<String, Object>> getSetPieces(String setId) {
-        String formattedId = setId.contains("-") ? setId : setId + "-1";
-        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + formattedId + "/parts/?page_size=100";
-        
+        if (setId != null && !setId.contains("-")) {
+            setId = setId + "-1";
+        }
+        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + setId + "/parts/?page_size=100";
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "key " + rebrickableKey);
         headers.set("Accept", "application/json");
         HttpEntity<String> entity = new HttpEntity<>(headers);
-        
         try {
             ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
@@ -226,7 +253,7 @@ public class CatalogService {
     private List<Map<String, Object>> cachedThemes = null;
 
     public List<Map<String, Object>> getThemes() {
-        if (cachedThemes != null) {
+        if (cachedThemes != null && !cachedThemes.isEmpty()) {
             return cachedThemes;
         }
         
@@ -240,6 +267,17 @@ public class CatalogService {
             ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 cachedThemes = (List<Map<String, Object>>) response.getBody().get("results");
+                
+                // Persist themes to DB
+                for(Map<String, Object> tMap : cachedThemes) {
+                    Integer id = ((Number) tMap.get("id")).intValue();
+                    String name = (String) tMap.get("name");
+                    Theme theme = new Theme();
+                    theme.setId(id);
+                    theme.setName(name);
+                    themeRepository.save(theme);
+                }
+                
                 return cachedThemes;
             }
         } catch (Exception e) {

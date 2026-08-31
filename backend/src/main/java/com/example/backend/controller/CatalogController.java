@@ -44,4 +44,16 @@ public class CatalogController {
     public List<Map<String, Object>> getThemes() {
         return catalogService.getThemes();
     }
+    @GetMapping("/proxy-image")
+    public org.springframework.http.ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            byte[] imageBytes = restTemplate.getForObject(url, byte[].class);
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.IMAGE_JPEG);
+            return new org.springframework.http.ResponseEntity<>(imageBytes, headers, org.springframework.http.HttpStatus.OK);
+        } catch (Exception e) {
+            return new org.springframework.http.ResponseEntity<>(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

@@ -21,9 +21,8 @@ const App = {
         loading: false
     },
 
-    init() {
+    async init() {
         API.loadAllThemes(); // Load themes mapping in background
-        const user = Storage.getUser();
         
         // Navigation Listeners
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -36,18 +35,17 @@ const App = {
         // Theme Change Listener
         document.addEventListener('themeChanged', () => {
             if (App.currentView === 'profile') {
-                // Pequeño timeout para asegurar que el CSS se ha aplicado antes de leer los colores
                 setTimeout(() => {
                     App.renderProfile(document.getElementById('main-content'));
                 }, 50);
             }
         });
 
-        if (user) {
-            App.navigate('search');
-        } else {
-            App.navigate('login');
-        }
+        // Migration and initial load
+        await Storage.runMigration();
+        await Storage.fetchAll();
+
+        App.navigate('search');
     },
 
     navigate(view) {
@@ -60,72 +58,13 @@ const App = {
             btn.classList.toggle('active', btn.dataset.view === view);
         });
 
-        if (view === 'login') {
-            nav.classList.add('hidden');
-            this.renderLogin(main);
-        } else {
-            nav.classList.remove('hidden');
-            if (view === 'search') this.renderSearch(main);
+        nav.classList.remove('hidden');
+        if (view === 'search') this.renderSearch(main);
             else if (view === 'collection') this.renderCollection(main);
             else if (view === 'pieces') this.renderMyPieces(main);
             else if (view === 'profile') this.renderProfile(main);
-        }
         
         lucide.createIcons();
-    },
-
-    // --- LOGIN VIEW ---
-    renderLogin(container) {
-        container.innerHTML = `
-            <div class="view-container" style="display: flex; flex-direction: column; justify-content: center; min-height: 80vh;">
-                <div class="text-center mb-4">
-                    <h1 style="color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-size: 2rem;">BrickCollector</h1>
-                    <p style="color: var(--text-muted);">Tu colección de Legos, organizada.</p>
-                </div>
-                <form id="login-form" style="background: var(--bg-card); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border); max-width: 400px; margin: 0 auto; width: 100%;">
-                    <div class="input-group">
-                        <label>Nombre</label>
-                        <input type="text" id="login-name" class="input-field" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Apellidos</label>
-                        <input type="text" id="login-last" class="input-field" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Email</label>
-                        <input type="email" id="login-email" class="input-field" required>
-                    </div>
-                    <button type="submit" class="btn w-full mt-4">Entrar a mi Colección</button>
-                </form>
-            </div>
-        `;
-
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Cargando datos...';
-            lucide.createIcons();
-            const email = document.getElementById('login-email').value;
-            // Hack: As password we'll send email for now just to make it work, 
-            // since the previous UI didn't have password. The user can recreate users.
-            try {
-                await Storage.login(email, "root");
-                App.navigate('search');
-            } catch (error) {
-                // Try registering if login fails
-                const name = document.getElementById('login-name').value;
-                const lastName = document.getElementById('login-last').value;
-                try {
-                    await Storage.register(name, lastName, email, "root");
-                    await Storage.login(email, "root");
-                    App.navigate('search');
-                } catch(e) {
-                    btn.innerHTML = originalText;
-                    alert("Error: " + e.message);
-                }
-            }
-        });
     },
 
     // --- SEARCH VIEW ---
@@ -264,7 +203,7 @@ const App = {
         if (this.collectionState.sortBy === 'pieces') {
             filteredItems.sort((a,b) => (b.num_parts || 0) - (a.num_parts || 0));
         } else if (this.collectionState.sortBy === 'price') {
-            filteredItems.sort((a,b) => (b.estimated_price || 0) - (a.estimated_price || 0));
+            filteredItems.sort((a,b) => (b.retail_price || 0) - (a.retail_price || 0));
         } else if (this.collectionState.sortBy === 'year') {
             filteredItems.sort((a,b) => (b.year || 0) - (a.year || 0));
         }
@@ -351,7 +290,7 @@ const App = {
         if (this.collectionState.sortBy === 'pieces') {
             filteredItems.sort((a,b) => (b.num_parts || 0) - (a.num_parts || 0));
         } else if (this.collectionState.sortBy === 'price') {
-            filteredItems.sort((a,b) => (b.estimated_price || 0) - (a.estimated_price || 0));
+            filteredItems.sort((a,b) => (b.retail_price || 0) - (a.retail_price || 0));
         } else if (this.collectionState.sortBy === 'year') {
             filteredItems.sort((a,b) => (b.year || 0) - (a.year || 0));
         }
@@ -416,48 +355,113 @@ const App = {
             prompt("Copia este texto para compartir:", text);
         }
     },
-    exportPDF() {
+    async exportPDF() {
         const isCol = this.collectionState.tab === 'collection';
         const items = isCol ? Storage.getCollection() : Storage.getWishlist();
         if(items.length === 0) return UI.showToast("La lista está vacía.", "error");
         
+        UI.showToast("Generando PDF, descargando fotos...", "info");
+        
+        const totalPieces = isCol ? items.reduce((sum, i) => sum + (i.num_parts || 0), 0) : 0;
+        
+        const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+        const dateString = new Date().toLocaleDateString('en-US', dateOptions).toUpperCase();
+
         const container = document.createElement('div');
-        container.style.padding = "20px";
-        container.style.fontFamily = "sans-serif";
+        // Fijamos el ancho para que el layout no se rompa al renderizar
+        container.style.width = "800px"; 
+        container.style.padding = "40px";
+        container.style.fontFamily = "'Montserrat', 'Inter', 'Segoe UI', sans-serif";
+        container.style.backgroundColor = "#FFFFFF";
+        container.style.color = "#000000";
+        container.style.position = "relative";
+        
+        const reportTitle = isCol ? 'LEGO COLLECTION REPORT' : 'LEGO WISHLIST REPORT';
+        const totalStats = isCol 
+            ? `TOTAL SETS: ${items.length} &nbsp;|&nbsp; TOTAL PIECES: ${totalPieces.toLocaleString()}`
+            : `TOTAL SETS: ${items.length}`;
+
+        const headerBg = `
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 180px; background: linear-gradient(135deg, #F0F4F8 0%, #FFFFFF 100%); z-index: 0; opacity: 0.5;"></div>
+        `;
+
+        let itemsHtml = items.map(i => {
+            const setIdShort = i.set_num.split('-')[0];
+            const priceVal = (i.retail_price || 0).toFixed(2);
+            
+            // Usamos nuestro backend como proxy para saltarnos las restricciones CORS del navegador
+            const proxyImg = `http://localhost:8080/api/catalog/proxy-image?url=${encodeURIComponent(i.set_img_url)}`;
+
+            return `
+            <div style="display: flex; align-items: center; padding: 25px 0; border-bottom: 1px solid #EAEAEA; page-break-inside: avoid; position: relative; z-index: 1;">
+                
+                <div style="width: 120px; height: 120px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 8px; margin-right: 35px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <img src="${proxyImg}" crossorigin="anonymous" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+                
+                <div style="flex: 2; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-size: 20px; font-weight: 800; margin-bottom: 4px;">#${setIdShort}</div>
+                    <div style="font-size: 22px; font-weight: 700;">${i.name}</div>
+                </div>
+                
+                <div style="flex: 1.5; display: flex; justify-content: ${isCol ? 'flex-start' : 'flex-end'}; align-items: center; gap: 40px;">
+                    ${isCol ? `
+                        <div style="display: flex; flex-direction: column;">
+                            <div style="font-size: 16px; color: #444; margin-bottom: 6px;">Pieces</div>
+                            <div style="font-size: 18px;">${(i.num_parts || 0).toLocaleString()} pcs</div>
+                        </div>
+                    ` : `
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <div style="font-size: 16px; color: #444; margin-bottom: 6px;">Estimated</div>
+                            <div style="font-size: 18px; font-weight: 800;">€${priceVal}</div>
+                        </div>
+                    `}
+                </div>
+                
+            </div>
+            `;
+        }).join('');
+
         container.innerHTML = `
-            <h1 style="color: #0F172A; text-align: center;">${isCol ? 'Mi Colección de Legos' : 'Mi Lista de Deseos de Legos'}</h1>
-            <p style="text-align: center;">Total de sets: ${items.length}</p>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <tr style="background: #FFCF00; border: 1px solid #000;">
-                    <th style="padding: 10px; border: 1px solid #000;">ID</th>
-                    <th style="padding: 10px; border: 1px solid #000;">Nombre</th>
-                    <th style="padding: 10px; border: 1px solid #000;">Piezas</th>
-                    <th style="padding: 10px; border: 1px solid #000;">Precio Est.</th>
-                </tr>
-                ${items.map(i => `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #000; text-align: center;">${i.set_num.split('-')[0]}</td>
-                    <td style="padding: 8px; border: 1px solid #000;">${i.name}</td>
-                    <td style="padding: 8px; border: 1px solid #000; text-align: center;">${i.num_parts || 0}</td>
-                    <td style="padding: 8px; border: 1px solid #000; text-align: center;">€${i.estimated_price || 0}</td>
-                </tr>
-                `).join('')}
-            </table>
+            ${headerBg}
+            <div style="text-align: center; margin-bottom: 25px; position: relative; z-index: 1;">
+                <h1 style="margin: 0 0 15px 0; font-size: 32px; font-weight: 400; letter-spacing: 1px; color: #111;">${reportTitle}</h1>
+                <div style="font-size: 14px; font-weight: 700; margin-bottom: 8px;">DATE: <span style="font-weight: 400;">${dateString}</span></div>
+                <div style="font-size: 14px; font-weight: 700;">${totalStats}</div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #EAEAEA; padding-bottom: 10px; margin-bottom: 10px; position: relative; z-index: 1;">
+                <div style="background:#E3000B; color:white; font-family:Arial; font-weight:900; font-style:italic; text-shadow:-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; padding:3px 8px; border:2px solid #000; border-radius:3px; font-size:18px;">LEGO</div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column;">
+                ${itemsHtml}
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center; font-size: 14px; color: #888; position: relative; z-index: 1;">
+                Lego ${isCol ? 'Collection' : 'Wishlist'} | Detailed Inventory
+            </div>
         `;
         
         const opt = {
-            margin: 10,
-            filename: isCol ? 'Coleccion_Lego.pdf' : 'Wishlist_Lego.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
+            margin: [10, 10, 10, 10],
+            filename: isCol ? 'Lego_Collection_Report.pdf' : 'Lego_Wishlist_Report.pdf',
+            image: { type: 'jpeg', quality: 1 },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF' },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        html2pdf().set(opt).from(container).save();
+        
+        try {
+            await html2pdf().set(opt).from(container).save();
+            UI.showToast("PDF generado con éxito.", "success");
+        } catch (e) {
+            console.error("Error generating PDF", e);
+            UI.showToast("Error al generar PDF", "error");
+        }
     },
 
     // --- PROFILE VIEW ---
     renderProfile(container) {
-        const user = Storage.getUser();
         const col = Storage.getCollection();
         
         let totalPieces = 0;
@@ -482,7 +486,7 @@ const App = {
         let purchaseYearSpend = {};
         
         const wish = Storage.getWishlist() || [];
-        const wishlistTotalCost = wish.reduce((sum, s) => sum + (s.estimated_price || 0), 0);
+        const wishlistTotalCost = wish.reduce((sum, s) => sum + (s.retail_price || 0), 0);
 
         // If the Mis Piezas cache is loaded, use it as the source of truth for piece counts
         // (more accurate than num_parts metadata). Otherwise fall back to num_parts.
@@ -493,7 +497,7 @@ const App = {
 
         col.forEach(s => {
             const p = s.num_parts || 0;
-            const v = s.estimated_price || 0;
+            const v = s.retail_price || 0;
             const y = s.year || 0;
             // Only add to totalPieces from num_parts if cache is NOT available
             if (!piecesCache || piecesCache.length === 0) {
@@ -502,7 +506,7 @@ const App = {
             totalValue += v;
             
             if (!largestSet || p > (largestSet.num_parts || 0)) largestSet = s;
-            if (!mostValuableSet || v > (mostValuableSet.estimated_price || 0)) mostValuableSet = s;
+            if (!mostValuableSet || v > (mostValuableSet.retail_price || 0)) mostValuableSet = s;
             if (y > 0 && (!oldestSet || y < (oldestSet.year || 9999))) oldestSet = s;
 
             if (s.theme_id) {
@@ -608,11 +612,10 @@ const App = {
         container.innerHTML = `
             <div class="view-container">
                 <div class="text-center mb-4">
-                    <div style="width:80px; height:80px; border-radius:50%; background:var(--bg-surface-muted); border:1px solid var(--border); color:var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-size:2rem; font-weight:600; display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;">
-                        ${user.name[0]}${user.lastName[0]}
+                    <div style="width:80px; height:80px; border-radius:50%; background:var(--bg-surface-muted); border:1px solid var(--border); color:var(--text-primary); display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;">
+                        <i data-lucide="user" style="width:40px; height:40px;"></i>
                     </div>
-                    <h2>${user.name} ${user.lastName}</h2>
-                    <p class="text-muted" style="color: var(--text-secondary)">${user.email}</p>
+                    <h2>Mi Colección</h2>
                     <div class="badge-container">${badgesHtml}</div>
                 </div>
 
@@ -748,7 +751,7 @@ const App = {
                         <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">Tops de Colección</h3>
                         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
                             ${renderHighlight("El Más Grande", largestSet, `<span style="font-family: 'IBM Plex Mono', monospace;">${largestSet?.num_parts}</span> piezas`)}
-                            ${renderHighlight("El Más Valioso", mostValuableSet, `<span style="font-family: 'IBM Plex Mono', monospace;">€${mostValuableSet?.estimated_price}</span>`)}
+                            ${renderHighlight("El Más Valioso", mostValuableSet, `<span style="font-family: 'IBM Plex Mono', monospace;">€${mostValuableSet?.retail_price || 0}</span>`)}
                             ${renderHighlight("El Más Antiguo", oldestSet, `Año <span style="font-family: 'IBM Plex Mono', monospace;">${oldestSet?.year}</span>`)}
                             ${renderHighlight("Mejor Precio/Pieza", bestPricePerPieceSet, bestPricePerPiece !== Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">€${bestPricePerPiece.toFixed(2)}</span>/pz` : '-')}
                             ${renderHighlight("Mayor Revalorización", highestRevalSet, highestRevalPct !== -Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">+${highestRevalPct.toFixed(1)}%</span>` : '-')}
@@ -1282,6 +1285,37 @@ const App = {
         lucide.createIcons();
         const pieces = await API.getSetPieces(setId);
         UI.renderPiecesList(pieces);
+    },
+
+    handlePurchaseTypeChange(selectElement, defaultPrice) {
+        const group = document.getElementById('purchase-price-group');
+        const priceInput = document.getElementById('purchase-price');
+        if (selectElement.value === 'gift') {
+            group.style.display = 'none';
+            priceInput.value = 0;
+        } else {
+            group.style.display = 'block';
+            if (selectElement.value === 'self' && (!priceInput.value || priceInput.value == 0)) {
+                priceInput.value = defaultPrice;
+            }
+        }
+    },
+
+    async savePurchaseDetails(setId) {
+        const type = document.getElementById('purchase-type').value;
+        const priceInput = document.getElementById('purchase-price');
+        const yearInput = document.getElementById('purchase-year');
+        
+        const purchasePrice = parseFloat(priceInput.value) || 0;
+        const purchaseYear = parseInt(yearInput.value) || new Date().getFullYear();
+        
+        const item = Storage.getCollection().find(s => s.set_num === setId);
+        if (item && item.itemId) {
+            await Storage.updateSetInCollection(item.itemId, purchasePrice, purchaseYear);
+            UI.showToast('Detalles de compra guardados', 'success');
+            UI.closeModal(null, true);
+            App.navigate('collection'); // refresh
+        }
     }
 };
 
