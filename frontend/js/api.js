@@ -47,18 +47,12 @@ const API = {
     },
 
     async loadAllThemes() {
-        const cached = localStorage.getItem('rebrickable_themes');
-        if (cached) {
-            this._themesMap = JSON.parse(cached);
-            return;
-        }
         try {
             const data = await this.fetchBackend('/catalog/themes');
             if (data) {
                 const map = {};
                 data.forEach(t => map[t.id] = t.name);
                 this._themesMap = map;
-                localStorage.setItem('rebrickable_themes', JSON.stringify(map));
             }
         } catch(e) {
             console.error(e);

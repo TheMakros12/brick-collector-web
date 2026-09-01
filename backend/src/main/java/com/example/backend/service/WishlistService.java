@@ -39,11 +39,7 @@ public class WishlistService {
         }
         String finalSetId = setId;
 
-        LegoSet legoSet = legoSetRepository.findById(finalSetId).orElseGet(() -> {
-            catalogService.getSetDetails(finalSetId);
-            return legoSetRepository.findById(finalSetId)
-                .orElseThrow(() -> new IllegalArgumentException("Set no encontrado en Rebrickable"));
-        });
+        LegoSet legoSet = collectionService.getOrCreateLegoSet(finalSetId);
 
         // Ensure uniqueness
         Optional<Wishlist> existing = wishlistRepository.findByLegoSetId(finalSetId);

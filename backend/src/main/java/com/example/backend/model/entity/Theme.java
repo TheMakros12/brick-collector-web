@@ -15,4 +15,7 @@ public class Theme {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "parent_id")
+    private Integer parentId;
 }

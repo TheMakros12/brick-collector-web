@@ -29,20 +29,18 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 public class CatalogService {
 
     private final RestTemplate restTemplate;
-    private final LegoSetRepository legoSetRepository;
     private final ThemeRepository themeRepository;
 
     @Value("${api.rebrickable.key}")
     private String rebrickableKey;
 
-    @Value("${api.brickeconomy.key}")
+    @Value("${api.brickeconomy.key:}")
     private String brickEconomyKey;
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    public CatalogService(RestTemplate restTemplate, LegoSetRepository legoSetRepository, ThemeRepository themeRepository) {
+    public CatalogService(RestTemplate restTemplate, ThemeRepository themeRepository) {
         this.restTemplate = restTemplate;
-        this.legoSetRepository = legoSetRepository;
         this.themeRepository = themeRepository;
     }
 
@@ -104,18 +102,10 @@ public class CatalogService {
         for (LegoSetDTO dto : topResults) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 Double[] prices = fetchPricesFromBrickEconomy(dto.getSetId());
-                Double retail = prices[0];
-                Double market = prices[1];
-
-                if ((retail == null || retail == 0.0) && dto.getNumParts() != null && dto.getNumParts() > 0) {
-                    retail = estimateRetailPrice(dto.getNumParts());
+                if (prices != null) {
+                    dto.setRetailPrice(prices[0]);
+                    dto.setMarketValue(prices[1]);
                 }
-                if (market == null || market == 0.0) {
-                    market = retail;
-                }
-
-                dto.setRetailPrice(retail);
-                dto.setMarketValue(market);
             }, executorService);
             futures.add(future);
         }
@@ -124,12 +114,7 @@ public class CatalogService {
         return topResults;
     }
 
-    private Double estimateRetailPrice(Integer numParts) {
-        if (numParts == null || numParts <= 0) return 19.99;
-        double raw = numParts * 0.10;
-        if (raw < 9.99) return 9.99;
-        return Math.floor(raw) + 0.99;
-    }
+
 
     private List<LegoSetDTO> fetchSetsFromRebrickable(String query, Integer themeId, HttpEntity<String> entity) {
         String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/?page_size=20&ordering=-year";
@@ -155,7 +140,6 @@ public class CatalogService {
                     dto.setSetImgUrl((String) setMap.get("set_img_url"));
                     dto.setSetUrl((String) setMap.get("set_url"));
                     if (setMap.get("theme_id") != null) dto.setThemeId(((Number) setMap.get("theme_id")).intValue());
-                    saveSetToDb(dto);
                     list.add(dto);
                 }
             }
@@ -166,100 +150,60 @@ public class CatalogService {
     }
 
     public Double[] fetchPricesFromBrickEconomy(String setId) {
-        Double retail = 0.0;
-        Double current = 0.0;
         String cleanId = (setId != null && !setId.contains("-")) ? setId + "-1" : setId;
 
         if (brickEconomyKey != null && !brickEconomyKey.isEmpty() && !brickEconomyKey.contains("replace-me")) {
             try {
-                String url = "https://www.brickeconomy.com/api/v1/sets/" + cleanId + "?currency=EUR";
+                String url = "https://www.brickeconomy.com/api/v1/set/" + cleanId + "?currency=EUR";
                 HttpHeaders headers = new HttpHeaders();
-                headers.set("Authorization", "Bearer " + brickEconomyKey);
-                headers.set("x-api-key", brickEconomyKey);
-                headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-                headers.set("Accept", "application/json, text/html, */*");
+                headers.set("x-apikey", brickEconomyKey);
+                headers.set("Accept", "application/json");
+                headers.set("User-Agent", "BrickCollector/1.0 (Integration/API)");
+                
+                System.out.println("BrickEconomy API Call -> Endpoint: " + url + " | Set: " + cleanId + " | Currency: EUR");
+
                 HttpEntity<String> entity = new HttpEntity<>(headers);
                 
-                System.out.println("Llamando a API BrickEconomy para " + cleanId + " con clave: " + 
-                    (brickEconomyKey.length() > 4 ? brickEconomyKey.substring(0, 4) + "****" : "****"));
-
                 ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+                System.out.println("BrickEconomy API Response -> Status: " + response.getStatusCode().value());
+                
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                     String bodyStr = response.getBody().trim();
+                    System.out.println("BrickEconomy API Response Body -> " + bodyStr);
                     if (bodyStr.startsWith("{") || bodyStr.startsWith("[")) {
                         com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                         Map<String, Object> body = mapper.readValue(bodyStr, Map.class);
-                        Map<String, Object> data = body;
+                        Map<String, Object> dataMap = body;
                         if (body.get("data") instanceof Map) {
-                            data = (Map<String, Object>) body.get("data");
+                            dataMap = (Map<String, Object>) body.get("data");
                         } else if (body.get("result") instanceof Map) {
-                            data = (Map<String, Object>) body.get("result");
+                            dataMap = (Map<String, Object>) body.get("result");
                         }
                         
-                        if (data.get("retail_price_eu") != null) retail = ((Number) data.get("retail_price_eu")).doubleValue();
-                        else if (data.get("retail_price_us") != null) retail = ((Number) data.get("retail_price_us")).doubleValue();
-                        else if (data.get("retail_price") != null) retail = ((Number) data.get("retail_price")).doubleValue();
-                        else if (data.get("retailPrice") != null) retail = ((Number) data.get("retailPrice")).doubleValue();
+                        Double retailEu = null;
+                        Double currentNew = null;
                         
-                        if (data.get("current_value_new") != null) current = ((Number) data.get("current_value_new")).doubleValue();
-                        else if (data.get("market_value") != null) current = ((Number) data.get("market_value")).doubleValue();
-                        else if (data.get("current_value") != null) current = ((Number) data.get("current_value")).doubleValue();
-                        
-                        if (retail > 0) {
-                            System.out.println("BrickEconomy API OK para " + cleanId + ": MSRP=" + retail + "€, Valor=" + current + "€");
-                            return new Double[]{retail, current};
+                        if (dataMap.get("retail_price_eu") != null) {
+                            retailEu = ((Number) dataMap.get("retail_price_eu")).doubleValue();
                         }
+                        if (dataMap.get("current_value_new") != null) {
+                            currentNew = ((Number) dataMap.get("current_value_new")).doubleValue();
+                        }
+                        
+                        System.out.println("BrickEconomy API Success -> retail_price_eu: " + retailEu + " | current_value_new: " + currentNew);
+                        return new Double[]{retailEu, currentNew};
                     }
                 }
+            } catch (org.springframework.web.client.HttpStatusCodeException e) {
+                System.err.println("BrickEconomy API Error -> Status: " + e.getStatusCode() + " | Body: " + e.getResponseBodyAsString());
             } catch (Exception e) {
-                System.err.println("Aviso API BrickEconomy para " + cleanId + ": " + e.getMessage());
+                System.err.println("BrickEconomy API Unexpected Error -> " + e.getMessage());
             }
+        } else {
+            System.err.println("BrickEconomy API Error -> API Key is missing or invalid");
         }
 
-        // Web scraping fallback directly from BrickEconomy public pages
-        Double[] webPrices = scrapePricesFromBrickEconomy(cleanId);
-        if (webPrices[0] > 0) {
-            return webPrices;
-        }
-
-        return new Double[]{0.0, 0.0};
-    }
-
-    private Double[] scrapePricesFromBrickEconomy(String setId) {
-        try {
-            String cleanId = setId.contains("-") ? setId : setId + "-1";
-            String webUrl = "https://www.brickeconomy.com/set/" + cleanId + "/";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            headers.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            
-            ResponseEntity<String> response = restTemplate.exchange(webUrl, HttpMethod.GET, entity, String.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String html = response.getBody();
-                Double retail = 0.0;
-                Double market = 0.0;
-                
-                java.util.regex.Pattern pRetail = java.util.regex.Pattern.compile("(?:available at retail for|retail for|retail price of|retail of|MSRP:?\\s*)[^0-9]{1,10}([0-9]+(?:\\.[0-9]{1,2})?)", java.util.regex.Pattern.CASE_INSENSITIVE);
-                java.util.regex.Matcher mRetail = pRetail.matcher(html);
-                if (mRetail.find()) {
-                    retail = Double.parseDouble(mRetail.group(1));
-                }
-
-                java.util.regex.Pattern pMarket = java.util.regex.Pattern.compile("(?:average below MSRP at|current value|market value|value:?\\s*)[^0-9]{1,10}([0-9]+(?:\\.[0-9]{1,2})?)", java.util.regex.Pattern.CASE_INSENSITIVE);
-                java.util.regex.Matcher mMarket = pMarket.matcher(html);
-                if (mMarket.find()) {
-                    market = Double.parseDouble(mMarket.group(1));
-                }
-
-                if (market == 0.0) market = retail;
-                System.out.println("BrickEconomy Web Scrape OK para " + cleanId + ": MSRP=" + retail + "€, Valor=" + market + "€");
-                return new Double[]{retail, market};
-            }
-        } catch (Exception e) {
-            System.err.println("Aviso Web Scraper BrickEconomy para " + setId + ": " + e.getMessage());
-        }
-        return new Double[]{0.0, 0.0};
+        return null;
     }
 
     public LegoSetDTO getSetDetails(String setId) {
@@ -290,21 +234,10 @@ public class CatalogService {
                 if (setMap.get("theme_id") != null) dto.setThemeId(((Number) setMap.get("theme_id")).intValue());
                 
                 Double[] prices = fetchPricesFromBrickEconomy(dto.getSetId());
-                Double retail = prices[0];
-                Double market = prices[1];
-
-                if ((retail == null || retail == 0.0) && dto.getNumParts() != null && dto.getNumParts() > 0) {
-                    retail = estimateRetailPrice(dto.getNumParts());
+                if (prices != null) {
+                    dto.setRetailPrice(prices[0]);
+                    dto.setMarketValue(prices[1]);
                 }
-                if (market == null || market == 0.0) {
-                    market = retail;
-                }
-
-                dto.setRetailPrice(retail);
-                dto.setMarketValue(market);
-
-                // Ensure it exists in the sets table so it can be linked to Collection/Wishlist
-                saveSetToDb(dto);
 
                 return dto;
             }
@@ -314,45 +247,20 @@ public class CatalogService {
         return null;
     }
 
-    private void saveSetToDb(LegoSetDTO dto) {
-        Optional<LegoSet> existing = legoSetRepository.findById(dto.getSetId());
-        if (existing.isEmpty()) {
-            LegoSet set = new LegoSet();
-            set.setId(dto.getSetId());
-            set.setName(dto.getName());
-            set.setPieces(dto.getNumParts());
-            set.setImageUrl(dto.getSetImgUrl());
-            if (dto.getYear() != null) {
-                set.setReleaseDate(LocalDate.of(dto.getYear(), 1, 1));
-            }
-            set.setRetailPrice(dto.getRetailPrice());
-            set.setRetired(false); // Default
 
-            if (dto.getThemeId() != null) {
-                Optional<Theme> theme = themeRepository.findById(dto.getThemeId());
-                if (theme.isPresent()) {
-                    set.setTheme(theme.get());
-                } else {
-                    getThemes(); 
-                    Optional<Theme> reloaded = themeRepository.findById(dto.getThemeId());
-                    if (reloaded.isPresent()) {
-                        set.setTheme(reloaded.get());
-                    } else {
-                        Theme fallbackTheme = new Theme();
-                        fallbackTheme.setId(dto.getThemeId());
-                        fallbackTheme.setName("Tema " + dto.getThemeId());
-                        set.setTheme(themeRepository.save(fallbackTheme));
-                    }
-                }
-            }
-            legoSetRepository.save(set);
-        } else {
-            LegoSet set = existing.get();
-            if ((set.getRetailPrice() == null || set.getRetailPrice() == 0.0) && dto.getRetailPrice() != null && dto.getRetailPrice() > 0) {
-                set.setRetailPrice(dto.getRetailPrice());
-                legoSetRepository.save(set);
-            }
+
+    public Theme getThemeEntity(Integer themeId) {
+        if (themeId == null) return null;
+        java.util.Optional<com.example.backend.model.entity.Theme> theme = themeRepository.findById(themeId);
+        if (theme.isPresent()) {
+            return theme.get();
         }
+        
+        System.out.println("Theme " + themeId + " no encontrado localmente. Sincronizando desde Rebrickable...");
+        getThemes();
+        
+        return themeRepository.findById(themeId).orElseThrow(() -> 
+            new IllegalArgumentException("El tema " + themeId + " no existe en Rebrickable y no se puede guardar."));
     }
 
     public List<Map<String, Object>> getSetPieces(String setId) {
@@ -384,15 +292,23 @@ public class CatalogService {
 
         if (themeRepository.count() > 0) {
             List<Theme> dbThemes = themeRepository.findAll();
-            List<Map<String, Object>> list = new ArrayList<>();
-            for (Theme t : dbThemes) {
-                Map<String, Object> m = new HashMap<>();
-                m.put("id", t.getId());
-                m.put("name", t.getName());
-                list.add(m);
+            
+            boolean isMigrated = dbThemes.stream().anyMatch(t -> t.getParentId() != null);
+            
+            if (isMigrated) {
+                List<Map<String, Object>> list = new ArrayList<>();
+                for (Theme t : dbThemes) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", t.getId());
+                    m.put("name", t.getName());
+                    m.put("parent_id", t.getParentId());
+                    list.add(m);
+                }
+                cachedThemes = list;
+                return cachedThemes;
+            } else {
+                System.out.println("Migración requerida: La tabla Theme no tiene parent_id. Forzando sincronización con Rebrickable...");
             }
-            cachedThemes = list;
-            return cachedThemes;
         }
         
         String rebrickableUrl = "https://rebrickable.com/api/v3/lego/themes/?page_size=1000";
@@ -410,9 +326,11 @@ public class CatalogService {
                 for(Map<String, Object> tMap : cachedThemes) {
                     Integer id = ((Number) tMap.get("id")).intValue();
                     String name = (String) tMap.get("name");
+                    Integer parentId = tMap.get("parent_id") != null ? ((Number) tMap.get("parent_id")).intValue() : null;
                     Theme theme = new Theme();
                     theme.setId(id);
                     theme.setName(name);
+                    theme.setParentId(parentId);
                     toSave.add(theme);
                 }
                 themeRepository.saveAll(toSave);

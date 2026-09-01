@@ -42,17 +42,39 @@ public class CollectionService {
     }
 
     @Transactional
+    public LegoSet getOrCreateLegoSet(String finalSetId) {
+        return legoSetRepository.findById(finalSetId).orElseGet(() -> {
+            LegoSetDTO dto = catalogService.getSetDetails(finalSetId);
+            if (dto == null) {
+                throw new IllegalArgumentException("Set no encontrado en Rebrickable");
+            }
+            LegoSet newSet = new LegoSet();
+            newSet.setId(dto.getSetId());
+            newSet.setName(dto.getName());
+            newSet.setPieces(dto.getNumParts());
+            newSet.setImageUrl(dto.getSetImgUrl());
+            if (dto.getYear() != null) {
+                newSet.setReleaseDate(LocalDate.of(dto.getYear(), 1, 1));
+            }
+            newSet.setRetailPrice(dto.getRetailPrice());
+            newSet.setRetired(false);
+
+            if (dto.getThemeId() != null) {
+                newSet.setTheme(catalogService.getThemeEntity(dto.getThemeId()));
+            }
+
+            return legoSetRepository.save(newSet);
+        });
+    }
+
+    @Transactional
     public ListItemDTO addSetToCollection(String setId) {
         if (setId != null && !setId.contains("-")) {
             setId = setId + "-1";
         }
         String finalSetId = setId;
 
-        LegoSet legoSet = legoSetRepository.findById(finalSetId).orElseGet(() -> {
-            catalogService.getSetDetails(finalSetId);
-            return legoSetRepository.findById(finalSetId)
-                .orElseThrow(() -> new IllegalArgumentException("Set no encontrado en Rebrickable"));
-        });
+        LegoSet legoSet = getOrCreateLegoSet(finalSetId);
 
         // Ensure uniqueness
         Optional<Collection> existing = collectionRepository.findByLegoSetId(finalSetId);
