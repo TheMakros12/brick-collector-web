@@ -10,11 +10,15 @@
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         
-        // Update icon if the button is loaded
+        // Update icon and text label
         const themeIcon = document.getElementById('theme-icon');
+        const themeSpan = document.querySelector('.theme-toggle-btn-full span');
         if (themeIcon && window.lucide) {
             themeIcon.setAttribute('data-lucide', newTheme === 'dark' ? 'sun' : 'moon');
             window.lucide.createIcons();
+        }
+        if (themeSpan) {
+            themeSpan.textContent = newTheme === 'dark' ? 'Modo Claro' : 'Modo Oscuro';
         }
         
         // Notify other parts of the app

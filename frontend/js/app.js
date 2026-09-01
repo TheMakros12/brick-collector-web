@@ -23,7 +23,7 @@ const App = {
 
     async init() {
         API.loadAllThemes(); // Load themes mapping in background
-        
+
         // Navigation Listeners (Top nav & Mobile bottom nav)
         document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -63,7 +63,7 @@ const App = {
         const main = document.getElementById('main-content');
         const nav = document.getElementById('main-nav');
         const mobileNav = document.getElementById('mobile-bottom-nav');
-        
+
         // Update nav active state (both top and bottom mobile nav)
         document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.view === view);
@@ -76,7 +76,7 @@ const App = {
         else if (view === 'collection') this.renderCollection(main);
         else if (view === 'pieces') this.renderMyPieces(main);
         else if (view === 'profile') this.renderProfile(main);
-        
+
         lucide.createIcons();
     },
 
@@ -102,10 +102,10 @@ const App = {
                     </button>
                 </div>
                 <div id="search-results" class="mt-4">
-                    ${this.searchState.results.length > 0 ? 
-                        this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('') + 
-                        ((this.searchState.results.length >= 30 && !/^\d+(-1)?$/.test(this.searchState.query)) ? '<button class="btn btn-outline w-full mt-4" onclick="App.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>' : '') 
-                        : '<div class="text-center text-muted mt-4">Busca tu próximo set de Lego.</div>'}
+                    ${this.searchState.results.length > 0 ?
+                this.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('') +
+                ((this.searchState.results.length >= 30 && !/^\d+(-1)?$/.test(this.searchState.query)) ? '<button class="btn btn-outline w-full mt-4" onclick="App.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>' : '')
+                : '<div class="text-center text-muted mt-4">Busca tu próximo set de Lego.</div>'}
                 </div>
             </div>
         `;
@@ -114,7 +114,7 @@ const App = {
             this.searchState.category = e.target.value;
             this.performSearch();
         });
-        
+
         document.getElementById('search-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.performSearch();
         });
@@ -123,7 +123,7 @@ const App = {
     async performSearch() {
         const query = document.getElementById('search-input').value;
         const category = document.getElementById('search-category').value;
-        
+
         this.searchState.query = query;
         this.searchState.category = category;
         this.searchState.page = 1;
@@ -165,7 +165,7 @@ const App = {
 
         this.searchState.page++;
         const newResults = await API.searchSets(this.searchState.query, this.searchState.category, this.searchState.page);
-        
+
         if (newResults && newResults.length > 0) {
             this.searchState.results = [...this.searchState.results, ...newResults];
             const resultsContainer = document.getElementById('search-results');
@@ -205,31 +205,31 @@ const App = {
     renderCollection(container) {
         const isCol = this.collectionState.tab === 'collection';
         const items = isCol ? Storage.getCollection() : Storage.getWishlist();
-        
+
         // Filter & Sort items
         let filteredItems = items;
         if (this.collectionState.searchQuery) {
             const q = this.collectionState.searchQuery.toLowerCase();
             filteredItems = items.filter(i => i.name.toLowerCase().includes(q) || i.set_num.includes(q));
         }
-        
+
         if (this.collectionState.sortBy === 'pieces') {
-            filteredItems.sort((a,b) => (b.num_parts || 0) - (a.num_parts || 0));
+            filteredItems.sort((a, b) => (b.num_parts || 0) - (a.num_parts || 0));
         } else if (this.collectionState.sortBy === 'price') {
-            filteredItems.sort((a,b) => (b.retail_price || 0) - (a.retail_price || 0));
+            filteredItems.sort((a, b) => (b.retail_price || 0) - (a.retail_price || 0));
         } else if (this.collectionState.sortBy === 'year') {
-            filteredItems.sort((a,b) => (b.year || 0) - (a.year || 0));
+            filteredItems.sort((a, b) => (b.year || 0) - (a.year || 0));
         }
 
         // Calculate unique themes for the dropdown
         const uniqueThemes = [...new Set(items.map(i => i.theme_id).filter(id => id))];
-        const themeOptions = uniqueThemes.map(id => 
+        const themeOptions = uniqueThemes.map(id =>
             `<option value="${id}" ${this.collectionState.themeFilter == id ? 'selected' : ''}>${API.getThemeName(id)}</option>`
         ).join('');
 
         // Calculate unique purchase years
-        const uniqueYears = [...new Set(items.map(i => i.purchaseDetails && i.purchaseDetails.purchaseYear).filter(y => y))].sort((a,b) => b - a);
-        const yearOptions = uniqueYears.map(y => 
+        const uniqueYears = [...new Set(items.map(i => i.purchaseDetails && i.purchaseDetails.purchaseYear).filter(y => y))].sort((a, b) => b - a);
+        const yearOptions = uniqueYears.map(y =>
             `<option value="${y}" ${this.collectionState.yearFilter == y ? 'selected' : ''}>Comprado en ${y}</option>`
         ).join('');
 
@@ -269,9 +269,9 @@ const App = {
                 </div>
 
                 <div id="collection-list">
-                    ${filteredItems.length > 0 ? 
-                        filteredItems.map(s => UI.createLegoCard(s, this.collectionState.tab)).join('') 
-                        : `<div class="text-center text-muted p-4">La lista está vacía.</div>`}
+                    ${filteredItems.length > 0 ?
+                filteredItems.map(s => UI.createLegoCard(s, this.collectionState.tab)).join('')
+                : `<div class="text-center text-muted p-4">La lista está vacía.</div>`}
                 </div>
             </div>
         `;
@@ -285,7 +285,7 @@ const App = {
     updateCollectionListOnly() {
         const isCol = this.collectionState.tab === 'collection';
         const items = isCol ? Storage.getCollection() : Storage.getWishlist();
-        
+
         let filteredItems = items;
         if (this.collectionState.searchQuery) {
             const q = this.collectionState.searchQuery.toLowerCase();
@@ -295,23 +295,23 @@ const App = {
         if (this.collectionState.themeFilter !== 'all') {
             filteredItems = filteredItems.filter(i => i.theme_id == this.collectionState.themeFilter);
         }
-        
+
         if (this.collectionState.yearFilter && this.collectionState.yearFilter !== 'all') {
             filteredItems = filteredItems.filter(i => i.purchaseDetails && i.purchaseDetails.purchaseYear == this.collectionState.yearFilter);
         }
-        
+
         if (this.collectionState.sortBy === 'pieces') {
-            filteredItems.sort((a,b) => (b.num_parts || 0) - (a.num_parts || 0));
+            filteredItems.sort((a, b) => (b.num_parts || 0) - (a.num_parts || 0));
         } else if (this.collectionState.sortBy === 'price') {
-            filteredItems.sort((a,b) => (b.retail_price || 0) - (a.retail_price || 0));
+            filteredItems.sort((a, b) => (b.retail_price || 0) - (a.retail_price || 0));
         } else if (this.collectionState.sortBy === 'year') {
-            filteredItems.sort((a,b) => (b.year || 0) - (a.year || 0));
+            filteredItems.sort((a, b) => (b.year || 0) - (a.year || 0));
         }
 
         const listContainer = document.getElementById('collection-list');
         if (listContainer) {
-            listContainer.innerHTML = filteredItems.length > 0 ? 
-                filteredItems.map(s => UI.createLegoCard(s, this.collectionState.tab)).join('') 
+            listContainer.innerHTML = filteredItems.length > 0 ?
+                filteredItems.map(s => UI.createLegoCard(s, this.collectionState.tab)).join('')
                 : `<div class="text-center text-muted p-4">La lista está vacía.</div>`;
             lucide.createIcons();
         }
@@ -335,7 +335,7 @@ const App = {
     },
 
     async removeFromCollection(setId) {
-        if(confirm("¿Eliminar de la colección?")) {
+        if (confirm("¿Eliminar de la colección?")) {
             await Storage.removeFromCollection(setId);
             this.myPiecesState.allPieces = null; // invalidate pieces cache
             this.renderCollection(document.getElementById('main-content'));
@@ -343,7 +343,7 @@ const App = {
         }
     },
     async removeFromWishlist(setId) {
-        if(confirm("¿Eliminar de la lista de deseos?")) {
+        if (confirm("¿Eliminar de la lista de deseos?")) {
             await Storage.removeFromWishlist(setId);
             this.renderCollection(document.getElementById('main-content'));
             lucide.createIcons();
@@ -360,7 +360,7 @@ const App = {
     },
     shareWishlist() {
         const list = Storage.getWishlist();
-        if(list.length === 0) return UI.showToast("La lista está vacía", "error");
+        if (list.length === 0) return UI.showToast("La lista está vacía", "error");
         const text = "¡Mira mi Lista de Deseos de Lego!\n\n" + list.map(s => `- ${s.name} (${s.set_num})`).join('\n');
         if (navigator.share) {
             navigator.share({ title: 'Mi Wishlist Lego', text: text });
@@ -371,26 +371,26 @@ const App = {
     async exportPDF() {
         const isCol = this.collectionState.tab === 'collection';
         const items = isCol ? Storage.getCollection() : Storage.getWishlist();
-        if(items.length === 0) return UI.showToast("La lista está vacía.", "error");
-        
+        if (items.length === 0) return UI.showToast("La lista está vacía.", "error");
+
         UI.showToast("Generando PDF, descargando fotos...", "info");
-        
+
         const totalPieces = isCol ? items.reduce((sum, i) => sum + (i.num_parts || 0), 0) : 0;
-        
+
         const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
         const dateString = new Date().toLocaleDateString('en-US', dateOptions).toUpperCase();
 
         const container = document.createElement('div');
         // Fijamos el ancho para que el layout no se rompa al renderizar
-        container.style.width = "800px"; 
+        container.style.width = "800px";
         container.style.padding = "40px";
         container.style.fontFamily = "'Montserrat', 'Inter', 'Segoe UI', sans-serif";
         container.style.backgroundColor = "#FFFFFF";
         container.style.color = "#000000";
         container.style.position = "relative";
-        
+
         const reportTitle = isCol ? 'LEGO COLLECTION REPORT' : 'LEGO WISHLIST REPORT';
-        const totalStats = isCol 
+        const totalStats = isCol
             ? `TOTAL SETS: ${items.length} &nbsp;|&nbsp; TOTAL PIECES: ${totalPieces.toLocaleString()}`
             : `TOTAL SETS: ${items.length}`;
 
@@ -401,7 +401,7 @@ const App = {
         let itemsHtml = items.map(i => {
             const setIdShort = i.set_num.split('-')[0];
             const priceVal = (i.retail_price || 0).toFixed(2);
-            
+
             // Usamos nuestro backend como proxy para saltarnos las restricciones CORS del navegador
             const proxyImg = `http://localhost:8080/api/catalog/proxy-image?url=${encodeURIComponent(i.set_img_url)}`;
 
@@ -455,7 +455,7 @@ const App = {
                 Lego ${isCol ? 'Collection' : 'Wishlist'} | Detailed Inventory
             </div>
         `;
-        
+
         const opt = {
             margin: [10, 10, 10, 10],
             filename: isCol ? 'Lego_Collection_Report.pdf' : 'Lego_Wishlist_Report.pdf',
@@ -463,7 +463,7 @@ const App = {
             html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF' },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        
+
         try {
             await html2pdf().set(opt).from(container).save();
             UI.showToast("PDF generado con éxito.", "success");
@@ -476,7 +476,7 @@ const App = {
     // --- PROFILE VIEW ---
     renderProfile(container) {
         const col = Storage.getCollection();
-        
+
         let totalPieces = 0;
         let totalValue = 0;
         let largestSet = null;
@@ -484,20 +484,20 @@ const App = {
         let oldestSet = null;
         let themeCounts = {};
         let yearCounts = {};
-        
+
         let bestPricePerPieceSet = null;
         let bestPricePerPiece = Infinity;
-        
+
         let highestRevalSet = null;
         let highestRevalPct = -Infinity;
-        
+
         let revalPercentages = [];
         let horizontalChartData = [];
 
         let top5CPP = [];
         let acquisitionCounts = { 'self': 0, 'gift': 0, 'partial': 0 };
         let purchaseYearSpend = {};
-        
+
         const wish = Storage.getWishlist() || [];
         const wishlistTotalCost = wish.reduce((sum, s) => sum + (s.retail_price || 0), 0);
 
@@ -517,7 +517,7 @@ const App = {
                 totalPieces += p;
             }
             totalValue += v;
-            
+
             if (!largestSet || p > (largestSet.num_parts || 0)) largestSet = s;
             const topSetMarketVal = mostValuableSet ? ((mostValuableSet.market_value !== undefined && mostValuableSet.market_value !== null && mostValuableSet.market_value > 0) ? mostValuableSet.market_value : (mostValuableSet.retail_price || 0)) : 0;
             if (!mostValuableSet || v > topSetMarketVal) mostValuableSet = s;
@@ -529,21 +529,21 @@ const App = {
             if (y > 0) {
                 yearCounts[y] = (yearCounts[y] || 0) + 1;
             }
-            
+
             let pricePaid = null;
             if (s.purchaseDetails) {
                 if (s.purchaseDetails.type) acquisitionCounts[s.purchaseDetails.type]++;
-                
+
                 if (s.purchaseDetails.pricePaid !== undefined && s.purchaseDetails.pricePaid !== '') {
                     pricePaid = parseFloat(s.purchaseDetails.pricePaid);
                 }
-                
+
                 if (s.purchaseDetails.purchaseYear && pricePaid !== null) {
                     const py = s.purchaseDetails.purchaseYear;
                     purchaseYearSpend[py] = (purchaseYearSpend[py] || 0) + pricePaid;
                 }
             }
-            
+
             if (pricePaid !== null && pricePaid > 0) {
                 if (p > 0) {
                     const ppp = pricePaid / p;
@@ -553,7 +553,7 @@ const App = {
                         bestPricePerPieceSet = s;
                     }
                 }
-                
+
                 if (v > 0) {
                     const rev = ((v - pricePaid) / pricePaid) * 100;
                     revalPercentages.push(rev);
@@ -579,10 +579,10 @@ const App = {
         horizontalChartData.sort((a, b) => b.marketValue - a.marketValue);
         horizontalChartData = horizontalChartData.slice(0, 15); // Top 15
 
-        const avgRevaluation = revalPercentages.length > 0 
-            ? revalPercentages.reduce((a,b)=>a+b,0) / revalPercentages.length 
+        const avgRevaluation = revalPercentages.length > 0
+            ? revalPercentages.reduce((a, b) => a + b, 0) / revalPercentages.length
             : 0;
-            
+
         const revalColor = avgRevaluation > 0 ? 'var(--success)' : 'var(--accent)';
 
         // Badges Logic
@@ -591,31 +591,67 @@ const App = {
         if (col.length >= 10) badges.push({ icon: 'award', text: 'Gran Coleccionista' });
         if (totalPieces >= 5000) badges.push({ icon: 'hammer', text: 'Maestro Constructor' });
         if (totalValue >= 1000) badges.push({ icon: 'gem', text: 'Vitrina de Lujo' });
-        
-        const topThemeId = Object.keys(themeCounts).sort((a,b) => themeCounts[b] - themeCounts[a])[0];
+
+        const topThemeId = Object.keys(themeCounts).sort((a, b) => themeCounts[b] - themeCounts[a])[0];
         if (topThemeId && themeCounts[topThemeId] >= 3) {
             const themeMap = API.CATEGORIES.find(c => c.rebrickableId == topThemeId);
-            if(themeMap) badges.push({ icon: 'heart', text: `Fan de ${themeMap.name}` });
+            if (themeMap) badges.push({ icon: 'heart', text: `Fan de ${themeMap.name}` });
         }
 
         const badgesHtml = badges.map(b => `<div class="profile-badge"><i data-lucide="${b.icon}"></i> ${b.text}</div>`).join('');
 
-        const renderHighlight = (title, set, subtitle) => set ? `
-            <div class="highlight-set-card flex-1">
-                <img src="${set.set_img_url}" class="highlight-set-img" alt="Set">
-                <div>
-                    <div class="highlight-title">${title}</div>
-                    <div class="highlight-name">${set.name}</div>
-                    <div class="tech-text" style="color: var(--text-secondary); font-size: 0.85rem;">${subtitle}</div>
-                </div>
-            </div>
-        ` : '';
+        const legoColors = ['#FFC700', '#E3000B', '#0075FF', '#00D26A', '#FF6B00', '#A855F7', '#00F0FF'];
+        const renderThemeList = (counts, totalSets) => {
+            const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+            if (keys.length === 0) return '<div class="text-muted text-center p-4">No hay sets registrados por temas.</div>';
 
-        let cppRows = top5CPP.map((item, index) => `
+            return keys.map((themeId, idx) => {
+                const name = API.getThemeName(themeId);
+                const count = counts[themeId];
+                const pct = totalSets > 0 ? Math.round((count / totalSets) * 100) : 0;
+                const color = legoColors[idx % legoColors.length];
+
+                return `
+                    <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:12px; border:1px solid var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
+                                <span style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">${name}</span>
+                            </div>
+                            <span style="font-family:'IBM Plex Mono',monospace; font-size:0.85rem; color:var(--text-secondary);">${count} set${count !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div style="height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
+                            <div style="width:${pct}%; height:100%; background:${color}; border-radius:3px; transition:width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const renderFeaturedCard = (badgeTitle, set, metricValue, accentColor) => {
+            if (!set) return '';
+            const setIdShort = set.set_num.split('-')[0];
+            return `
+                <div class="featured-set-card" onclick="App.openSetDetails('${set.set_num}')">
+                    <div class="featured-set-img-wrap">
+                        <img src="${set.set_img_url}" alt="${set.name}">
+                    </div>
+                    <div style="padding: 14px;">
+                        <div style="display:inline-block; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); color: ${accentColor}; font-size: 0.72rem; font-weight: 700; letter-spacing:0.5px; margin-bottom: 8px; border:1px solid rgba(255,255,255,0.1);">
+                            ${badgeTitle}
+                        </div>
+                        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--text-muted);">#${setIdShort}</div>
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px;" title="${set.name}">${set.name}</div>
+                        <div style="font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 1.05rem; color: ${accentColor};">${metricValue}</div>
+                    </div>
+                </div>
+            `;
+        };
+            let cppRows = top5CPP.map((item, index) => `
             <tr>
                 <td style="padding:12px 8px; border-bottom:1px solid var(--border);">${index + 1}</td>
                 <td style="padding:12px 8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;">
-                    <img src="${item.set.set_img_url}" style="width:32px; height:32px; object-fit:contain; border-radius:4px; background:transparent;"> 
+                    <img src="${item.set.set_img_url}" style="width:32px; height:32px; object-fit:contain; border-radius:4px; mix-blend-mode:multiply;"> 
                     <span style="color: var(--text-secondary); font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;">${item.set.set_num.split('-')[0]}</span>
                     <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;" title="${item.set.name}">${item.set.name}</span>
                 </td>
@@ -623,347 +659,312 @@ const App = {
             </tr>
         `).join('');
 
-        container.innerHTML = `
+            container.innerHTML = `
             <div class="view-container">
-                <div class="text-center mb-4">
-                    <div style="width:80px; height:80px; border-radius:50%; background:var(--bg-surface-muted); border:1px solid var(--border); color:var(--text-primary); display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;">
-                        <i data-lucide="user" style="width:40px; height:40px;"></i>
+                <!-- Header Title Bar -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, #F5C518, #E3000B); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(227, 0, 11, 0.3);">
+                            <i data-lucide="blocks" style="width: 26px; height: 26px;"></i>
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700;">Mi Colección</h2>
+                                <span class="bento-badge-pill"><i data-lucide="sparkles" style="width:13px;height:13px;"></i> Vitrina Digital</span>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top:2px;">Resumen de tu universo LEGO</p>
+                        </div>
                     </div>
-                    <h2>Mi Colección</h2>
-                    <div class="badge-container">${badgesHtml}</div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        ${col.length > 0 ? `
+                        <button class="btn btn-secondary" onclick="App.exportPDF()" style="display: flex; align-items: center; gap: 8px; border-radius: 12px;">
+                            <i data-lucide="file-text"></i> Exportar PDF
+                        </button>` : ''}
+                    </div>
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 30px;">
-                    <div>
-                        <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">KPIs</h3>
-                        <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
-                            <div class="stat-card" style="border-radius: 8px;">
-                                <div class="stat-value" id="stat-sets" style="font-family: 'IBM Plex Mono', monospace;">0</div>
-                                <div class="stat-label">Sets Totales</div>
-                            </div>
-                            <div class="stat-card" style="border-radius: 8px;">
-                                <div class="stat-value" id="stat-pieces" style="font-family: 'IBM Plex Mono', monospace;">0</div>
-                                <div class="stat-label">Piezas Totales</div>
-                            </div>
-                            <div class="stat-card" style="border-radius: 8px;">
-                                <div class="stat-value" id="stat-value" style="font-family: 'IBM Plex Mono', monospace;">0€</div>
-                                <div class="stat-label">Valor Estimado Vitrina</div>
-                            </div>
-                            <div class="stat-card" style="border-radius: 8px;">
-                                <div class="stat-value" style="font-family: 'IBM Plex Mono', monospace; color: ${revalColor};">${avgRevaluation > 0 ? '+' : ''}${avgRevaluation.toFixed(1)}%</div>
-                                <div class="stat-label">Revalorización Media</div>
-                            </div>
-                        </div>
+                ${badgesHtml ? `<div class="badge-container mb-4">${badgesHtml}</div>` : ''}
+
+                ${col.length === 0 ? `
+                <div style="background: var(--bg-surface); padding: 30px; border-radius: 20px; border: 2px dashed var(--accent); text-align: center; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+                    <i data-lucide="blocks" style="width: 42px; height: 42px; color: var(--accent); margin-bottom: 12px;"></i>
+                    <h3 style="margin-bottom: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem;">¡Empieza tu colección!</h3>
+                    <p style="color: var(--text-secondary); max-width: 540px; margin: 0 auto 18px auto; font-size: 0.95rem;">
+                        Busca tus sets favoritos de LEGO® y añádelos a tu colección para ver estadísticas avanzadas y visualización en tiempo real.
+                    </p>
+                    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="App.navigate('search')" style="border-radius: 12px; padding: 10px 24px;">
+                            <i data-lucide="search"></i> Buscar Sets
+                        </button>
                     </div>
+                </div>
+                ` : ''}
+
+                <!-- Main Bento Grid Container -->
+                <div class="bento-grid">
                     
-                    <div style="margin-bottom: 20px;">
-                        <h3 class="mb-3">Wishlist vs Colección</h3>
-                        <div style="background: var(--bg-surface-muted); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+                    <!-- Bento Hero Card: Valoración de Colección (Span 8) -->
+                    <div class="bento-card bento-card-hero bento-col-8">
+                        <div class="bento-stud-pattern">
+                            <div class="bento-stud"></div>
+                            <div class="bento-stud"></div>
+                            <div class="bento-stud"></div>
+                        </div>
+                        <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="gem" style="width:16px;height:16px;"></i> Valor de Mi Colección
+                        </div>
+                        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 2.8rem; font-weight: 700; color: var(--text-primary); line-height: 1.1; margin-bottom: 6px;" id="stat-value">0.00€</div>
+                        <div style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 20px;">Valor estimado actual de mercado</div>
 
-                            <!-- Two KPI cards side by side -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
-                                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; border-left: 3px solid var(--accent);">
-                                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;">Tu Vitrina</div>
-                                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 1.35rem; font-weight: bold; color: var(--accent);">${totalValue.toFixed(2)}€</div>
-                                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">${col.length} set${col.length !== 1 ? 's' : ''} en colección</div>
-                                </div>
-                                <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; border-left: 3px solid var(--text-muted);">
-                                    <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;">Coste Wishlist</div>
-                                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 1.35rem; font-weight: bold; color: var(--text-secondary);">${wishlistTotalCost.toFixed(2)}€</div>
-                                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">${Storage.getWishlist().length} set${Storage.getWishlist().length !== 1 ? 's' : ''} deseados</div>
+                        <div style="display: flex; gap: 24px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 16px;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Sets en Colección</div>
+                                <div style="font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 1.2rem; color: var(--text-primary);">${col.length} sets</div>
+                            </div>
+                            <div style="border-left: 1px solid var(--border); padding-left: 24px;">
+                                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Revalorización Media</div>
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+                                    <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 1.2rem; color: ${avgRevaluation >= 0 ? '#00D26A' : '#FF2A2A'};">${avgRevaluation > 0 ? '+' : ''}${avgRevaluation.toFixed(1)}%</span>
+                                    <span class="trend-pill ${avgRevaluation >= 0 ? 'positive' : 'negative'}">${avgRevaluation >= 0 ? '↑ ROI Positivo' : '↓ ROI Negativo'}</span>
                                 </div>
                             </div>
+                            <div style="border-left: 1px solid var(--border); padding-left: 24px;">
+                                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Lista de Deseos</div>
+                                <div style="font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 1.2rem; color: var(--text-secondary);">${wishlistTotalCost.toFixed(2)}€</div>
+                            </div>
+                        </div>
+                    </div>
 
-                            <!-- Stacked bar with labels -->
-                            ${(totalValue + wishlistTotalCost) > 0 ? (() => {
-                                const colPct = Math.round((totalValue / (totalValue + wishlistTotalCost)) * 100);
-                                const wisPct = 100 - colPct;
-                                return `
-                                <div style="margin-bottom: 10px;">
-                                    <div style="display: flex; border-radius: var(--radius-md); overflow: hidden; height: 28px; background: var(--bg-surface);">
-                                        <div style="width: ${colPct}%; background: var(--accent); display: flex; align-items: center; justify-content: center; transition: width 0.5s ease;">
-                                            ${colPct > 10 ? `<span style="font-size:0.72rem; font-weight:700; color:#fff;">${colPct}%</span>` : ''}
-                                        </div>
-                                        <div style="flex:1; background: var(--border); display: flex; align-items: center; justify-content: center;">
-                                            ${wisPct > 10 ? `<span style="font-size:0.72rem; font-weight:700; color: var(--text-secondary);">${wisPct}%</span>` : ''}
-                                        </div>
+                    <!-- Bento Card: Piezas Totales (Span 4) -->
+                    <div class="bento-card bento-col-4" style="border-top: 4px solid #00D26A; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing:0.5px; color: var(--text-secondary);">Piezas Totales</span>
+                                <div style="padding: 10px; border-radius: 12px; background: rgba(0, 210, 106, 0.12); color: #00D26A;">
+                                    <i data-lucide="puzzle" style="width: 22px; height: 22px;"></i>
+                                </div>
+                            </div>
+                            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 2.6rem; font-weight: 700; color: var(--text-primary); line-height: 1.1;" id="stat-pieces">0</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">Ladrillos acumulados</div>
+                        </div>
+                        <div style="padding-top:16px; border-top:1px solid var(--border); margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.8rem; color:var(--text-secondary);">Inventario por piezas</span>
+                            <button class="btn btn-outline" onclick="App.navigate('pieces')" style="padding:4px 10px; font-size:0.75rem; border-radius:8px;">
+                                Ver Piezas <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bento Module: Mis Temas (Span 6) -->
+                    <div class="bento-card bento-col-6" style="display:flex; flex-direction:column;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="blocks" style="width: 18px; height: 18px; color: #FFC700;"></i> Mis Temas
+                            </h3>
+                            <span style="font-size:0.8rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${Object.keys(themeCounts).length} categorías</span>
+                        </div>
+                        
+                        <div style="display:flex; flex-direction:column; gap:10px; flex:1;">
+                            ${renderThemeList(themeCounts, col.length)}
+                        </div>
+                    </div>
+
+                    <!-- Bento Module: Cómo Llegaron / Origen de Adquisición (Span 6) -->
+                    <div class="bento-card bento-col-6" style="display:flex; flex-direction:column;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="gift" style="width: 18px; height: 18px; color: #00D26A;"></i> Cómo Llegaron
+                            </h3>
+                            <span style="font-size:0.8rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">Origen</span>
+                        </div>
+                        
+                        <div style="display:flex; flex-direction:column; gap:12px; flex:1; justify-content:center;">
+                            <div style="background:var(--bg-surface-muted); padding:12px 16px; border-radius:14px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div style="width:36px; height:36px; border-radius:10px; background:rgba(0,210,106,0.12); color:#00D26A; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🛍️</div>
+                                    <div>
+                                        <div style="font-weight:600; font-size:0.92rem; color:var(--text-primary);">Comprados por mí</div>
+                                        <div style="font-size:0.75rem; color:var(--text-muted);">Adquisiciones personales</div>
                                     </div>
-                                    <div style="display: flex; justify-content: space-between; margin-top: 6px;">
-                                        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted);">
-                                            <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background: var(--accent);"></span> Colección
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted);">
-                                            Wishlist <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background: var(--border);"></span>
-                                        </div>
+                                </div>
+                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:700; color:#00D26A;">${acquisitionCounts.self}</div>
+                            </div>
+
+                            <div style="background:var(--bg-surface-muted); padding:12px 16px; border-radius:14px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div style="width:36px; height:36px; border-radius:10px; background:rgba(168,85,247,0.12); color:#A855F7; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🎁</div>
+                                    <div>
+                                        <div style="font-weight:600; font-size:0.92rem; color:var(--text-primary);">Regalos recibidos</div>
+                                        <div style="font-size:0.75rem; color:var(--text-muted);">Obsequios y detalles</div>
                                     </div>
                                 </div>
-                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center;">
-                                    ${wishlistTotalCost > 0 
-                                        ? `Si completaras tu wishlist, tu inversión total sería <strong style="color: var(--text-primary);">${(totalValue + wishlistTotalCost).toFixed(2)}€</strong>`
-                                        : `🎉 ¡Tu wishlist está vacía! Tienes <strong style="color: var(--accent);">${totalValue.toFixed(2)}€</strong> en colección`
-                                    }
+                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:700; color:#A855F7;">${acquisitionCounts.gift}</div>
+                            </div>
+
+                            <div style="background:var(--bg-surface-muted); padding:12px 16px; border-radius:14px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div style="width:36px; height:36px; border-radius:10px; background:rgba(255,107,0,0.12); color:#FF6B00; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🤝</div>
+                                    <div>
+                                        <div style="font-weight:600; font-size:0.92rem; color:var(--text-primary);">Pago compartido / 2ª mano</div>
+                                        <div style="font-size:0.75rem; color:var(--text-muted);">Co-compras u ofertas especiales</div>
+                                    </div>
                                 </div>
-                                `;
-                            })() : ''}
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        ${top5CPP.length > 0 ? `
-                        <div style="display: flex; flex-direction: column;">
-                            <h3 class="mb-3">Top 5: Menor Coste por Pieza</h3>
-                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow-x: auto; flex: 1;">
-                                <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
-                                    <thead>
-                                        <tr style="color:var(--text-secondary);">
-                                            <th style="padding:10px 8px; border-bottom:1px solid var(--border);">#</th>
-                                            <th style="padding:10px 8px; border-bottom:1px solid var(--border);">Set</th>
-                                            <th style="padding:10px 8px; border-bottom:1px solid var(--border);">CPP</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${cppRows}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>` : ''}
-
-                        <div style="display: flex; flex-direction: column;">
-                            <h3 class="mb-3">Origen de Colección</h3>
-                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center; align-items: center; flex: 1;">
-                                <canvas id="acqChart" style="max-height: 220px;"></canvas>
+                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:700; color:#FF6B00;">${acquisitionCounts.partial}</div>
                             </div>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        ${Object.keys(purchaseYearSpend).length > 0 ? `
-                        <div style="display: flex; flex-direction: column;">
-                            <h3 class="mb-3">Gasto por Año de Compra</h3>
-                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); flex: 1;">
-                                <canvas id="yearChart" style="max-height: 250px;"></canvas>
-                            </div>
-                        </div>` : ''}
-
-                        <div style="display: flex; flex-direction: column;">
-                            <h3 class="mb-3">Distribución de Temas</h3>
-                            <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center; flex: 1;">
-                                <canvas id="themeChart" style="max-height: 250px;"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <h3 class="mb-3">Precio Original vs Valor Actual (Top 15)</h3>
-                        <div style="background: var(--bg-surface-muted); padding: 15px; border-radius: var(--radius-lg); border: 1px solid var(--border); display: flex; justify-content: center;">
-                            <canvas id="financialChart" style="max-height: 350px;"></canvas>
-                        </div>
-                    </div>
-                    
-                    ${col.length > 0 ? `
-                    <div>
-                        <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">Tops de Colección</h3>
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                            ${renderHighlight("El Más Grande", largestSet, `<span style="font-family: 'IBM Plex Mono', monospace;">${largestSet?.num_parts}</span> piezas`)}
-                            ${renderHighlight("El Más Valioso", mostValuableSet, `<span style="font-family: 'IBM Plex Mono', monospace;">€${(mostValuableSet?.market_value && mostValuableSet?.market_value > 0) ? mostValuableSet.market_value : (mostValuableSet?.retail_price || 0)}</span>`)}
-                            ${renderHighlight("El Más Antiguo", oldestSet, `Año <span style="font-family: 'IBM Plex Mono', monospace;">${oldestSet?.year}</span>`)}
-                            ${renderHighlight("Mejor Precio/Pieza", bestPricePerPieceSet, bestPricePerPiece !== Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">€${bestPricePerPiece.toFixed(2)}</span>/pz` : '-')}
-                            ${renderHighlight("Mayor Revalorización", highestRevalSet, highestRevalPct !== -Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">+${highestRevalPct.toFixed(1)}%</span>` : '-')}
+                    <!-- Bento Chart: Gasto por Año (Span 6) -->
+                    ${Object.keys(purchaseYearSpend).length > 0 ? `
+                    <div class="bento-card bento-col-6" style="display: flex; flex-direction: column;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="calendar" style="width: 18px; height: 18px; color: #0075FF;"></i> Gasto por Año de Compra
+                        </h3>
+                        <div style="flex: 1;">
+                            <div id="yearChart" style="width: 100%;"></div>
                         </div>
                     </div>` : ''}
 
-                </div> <!-- End gap container -->
+                    <!-- Bento Table: Top CPP (Span 6) -->
+                    ${top5CPP.length > 0 ? `
+                    <div class="bento-card bento-col-6" style="display: flex; flex-direction: column;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="award" style="width: 18px; height: 18px; color: #A855F7;"></i> Top 5: Menor Coste por Pieza
+                        </h3>
+                        <div style="overflow-x: auto; flex: 1;">
+                            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.88rem;">
+                                <thead>
+                                    <tr style="color:var(--text-secondary);">
+                                        <th style="padding:10px 8px; border-bottom:1px solid var(--border);">#</th>
+                                        <th style="padding:10px 8px; border-bottom:1px solid var(--border);">Set</th>
+                                        <th style="padding:10px 8px; border-bottom:1px solid var(--border);">CPP</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${cppRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>` : ''}
+
+                    <!-- Bento Financial Chart: Compra vs Mercado (Span 12) -->
+                    <div class="bento-card bento-col-12">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="trending-up" style="width: 18px; height: 18px; color: #E3000B;"></i> Precio de Compra vs Valor de Mercado (Top 15)
+                        </h3>
+                        <div>
+                            <div id="financialChart" style="width: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bento Section: Los Protagonistas de Mi Colección (Span 12) -->
+                    ${col.length > 0 ? `
+                    <div class="bento-card bento-col-12">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <div>
+                                <h3 style="font-size: 1.25rem; font-family: 'Space Grotesk', sans-serif; font-weight:700;">Los Protagonistas de Mi Colección</h3>
+                                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:2px;">Sets destacados por su relevancia en tu vitrina digital</p>
+                            </div>
+                            <span class="bento-badge-pill"><i data-lucide="star" style="width:13px;height:13px;"></i> Destacados</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
+                            ${renderFeaturedCard("💎 MÁS VALIOSO", mostValuableSet, `€${(mostValuableSet?.market_value && mostValuableSet?.market_value > 0) ? mostValuableSet.market_value : (mostValuableSet?.retail_price || 0)}`, "#FFC700")}
+                            ${renderFeaturedCard("🧱 MÁS GRANDE", largestSet, `${(largestSet?.num_parts || 0).toLocaleString('es')} piezas`, "#00D26A")}
+                            ${renderFeaturedCard("🚀 MAYOR ROI", highestRevalSet, highestRevalPct !== -Infinity ? `+${highestRevalPct.toFixed(1)}%` : '-', "#A855F7")}
+                            ${renderFeaturedCard("🏷️ MEJOR CPP", bestPricePerPieceSet, bestPricePerPiece !== Infinity ? `€${bestPricePerPiece.toFixed(2)}/pz` : '-', "#0075FF")}
+                            ${renderFeaturedCard("⏳ MÁS ANTIGUO", oldestSet, `Año ${oldestSet?.year || '-'}`, "#FF6B00")}
+                        </div>
+                    </div>` : ''}
+
+                </div> <!-- End bento grid -->
             </div>
         `;
 
-        // Run animations
-        const animateValue = (id, end, isCurrency = false) => {
-            const obj = document.getElementById(id);
-            if (!obj) return;
-            let start = 0;
-            const duration = 1000;
-            const stepTime = Math.abs(Math.floor(duration / (end || 1)));
-            const timer = setInterval(() => {
-                start += Math.max(1, Math.ceil(end / 30));
-                if (start >= end) {
-                    start = end;
-                    clearInterval(timer);
-                }
-                obj.innerText = isCurrency ? `${start.toFixed(2)}€` : start;
-            }, Math.max(stepTime, 20));
-        };
-
-        setTimeout(() => {
-            animateValue("stat-sets", col.length);
-            animateValue("stat-pieces", totalPieces);
-            animateValue("stat-value", totalValue, true);
-        }, 100);
-
-        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#6B685F';
-
-        if(Object.keys(themeCounts).length > 0) {
-            const ctx = document.getElementById('themeChart').getContext('2d');
-            const themeNames = Object.keys(themeCounts).map(id => API.getThemeName(id));
-            if (App.themeChart) App.themeChart.destroy();
-            App.themeChart = new Chart(ctx, {
-                type: 'doughnut',
-                plugins: [ChartDataLabels],
-                data: {
-                    labels: themeNames,
-                    datasets: [{
-                        data: Object.values(themeCounts),
-                        backgroundColor: [
-                            getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#B94324',
-                            getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#C97F1D',
-                            getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#3F7D5C',
-                            '#3B82F6', '#8B5CF6', '#F97316', '#EC4899'
-                        ],
-                        borderWidth: 0
-                    }]
-                },
-                options: { 
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        datalabels: {
-                            color: '#ffffff',
-                            font: { weight: 'bold', size: 13 },
-                            formatter: (value) => value
-                        },
-                        legend: { position: window.innerWidth < 480 ? 'bottom' : 'right', labels: { color: textColor } } 
-                    } 
-                }
-            });
-        }
-
-        if (Object.keys(acquisitionCounts).some(k => acquisitionCounts[k] > 0)) {
-            const ctxAcq = document.getElementById('acqChart').getContext('2d');
-            const labelsMap = { 'self': 'Pagado por mí', 'gift': 'Regalo', 'partial': 'Pago compartido' };
-            const activeKeys = Object.keys(acquisitionCounts).filter(k => acquisitionCounts[k] > 0);
-            
-            if (App.acqChart) App.acqChart.destroy();
-            App.acqChart = new Chart(ctxAcq, {
-                type: 'doughnut',
-                plugins: [ChartDataLabels],
-                data: {
-                    labels: activeKeys.map(k => labelsMap[k]),
-                    datasets: [{
-                        data: activeKeys.map(k => acquisitionCounts[k]),
-                        backgroundColor: ['#3F7D5C', '#8B5CF6', '#F97316'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { 
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        datalabels: {
-                            color: '#ffffff',
-                            font: { weight: 'bold', size: 13 },
-                            formatter: (value) => value
-                        },
-                        legend: { position: 'right', labels: { color: textColor } } 
-                    } 
-                }
-            });
-        }
-
-        if(horizontalChartData.length > 0) {
-            const ctxFin = document.getElementById('financialChart').getContext('2d');
-            const labelsFin = horizontalChartData.map(d => d.name);
-            const invData = horizontalChartData.map(d => d.pricePaid);
-            const valData = horizontalChartData.map(d => d.marketValue);
-            
-            const colorAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#B94324';
-            const colorSuccess = getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#3F7D5C';
-            
-            if (App.financialChart) App.financialChart.destroy();
-            App.financialChart = new Chart(ctxFin, {
-                type: 'bar',
-                data: {
-                    labels: labelsFin,
-                    datasets: [
-                        {
-                            label: 'Precio Compra (€)',
-                            data: invData,
-                            backgroundColor: colorAccent,
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Valor Mercado (€)',
-                            data: valData,
-                            backgroundColor: colorSuccess,
-                            borderRadius: 4
-                        }
-                    ]
-                },
-                options: { 
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'top', labels: { color: textColor } } },
-                    scales: {
-                        x: { ticks: { color: textColor }, grid: { color: 'rgba(0,0,0,0.05)' } },
-                        y: { ticks: { color: textColor }, grid: { display: false } }
+            // Run animations
+            const animateValue = (id, end, isCurrency = false) => {
+                const obj = document.getElementById(id);
+                if (!obj) return;
+                let start = 0;
+                const duration = 1000;
+                const stepTime = Math.abs(Math.floor(duration / (end || 1)));
+                const timer = setInterval(() => {
+                    start += Math.max(1, Math.ceil(end / 30));
+                    if (start >= end) {
+                        start = end;
+                        clearInterval(timer);
                     }
-                }
-            });
-            
-            // Adjust height based on number of items to prevent squishing
-            const chartParent = document.getElementById('financialChart').parentElement;
-            chartParent.style.height = `${Math.max(250, horizontalChartData.length * 40 + 50)}px`;
-            chartParent.style.display = 'block'; // Remove flex to allow height control
-            document.getElementById('financialChart').style.maxHeight = 'none';
-        }
+                    obj.innerText = isCurrency ? `${start.toFixed(2)}€` : start;
+                }, Math.max(stepTime, 20));
+            };
 
-        if(Object.keys(purchaseYearSpend).length > 0) {
-            const ctxYear = document.getElementById('yearChart').getContext('2d');
-            const years = Object.keys(purchaseYearSpend).sort();
-            const data = years.map(y => purchaseYearSpend[y]);
-            if (App.yearChart) App.yearChart.destroy();
-            App.yearChart = new Chart(ctxYear, {
-                type: 'bar',
-                plugins: [ChartDataLabels],
-                data: {
-                    labels: years,
-                    datasets: [{
-                        label: 'Gasto (€)',
-                        data: data,
-                        backgroundColor: '#B94324',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    plugins: { 
-                        legend: { display: false },
-                        datalabels: {
-                            color: textColor,
-                            anchor: 'end',
-                            align: 'top',
-                            font: { weight: 'bold', size: 12 },
-                            formatter: (value) => value.toFixed(2) + '€'
-                        }
+            setTimeout(() => {
+                animateValue("stat-sets", col.length);
+                animateValue("stat-pieces", totalPieces);
+                animateValue("stat-value", totalValue, true);
+            }, 100);
+
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const textColor = isDark ? '#F9F8F6' : '#1A1916';
+            const textMutedColor = isDark ? '#B4B1A7' : '#545149';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+
+            if (App.financialChart) { try { App.financialChart.destroy(); } catch (e) { } App.financialChart = null; }
+            if (App.yearChart) { try { App.yearChart.destroy(); } catch (e) { } App.yearChart = null; }
+
+            if (horizontalChartData.length > 0 && document.getElementById('financialChart')) {
+                const labelsFin = horizontalChartData.map(d => d.name);
+                const invData = horizontalChartData.map(d => d.pricePaid);
+                const valData = horizontalChartData.map(d => d.marketValue);
+
+                App.financialChart = new ApexCharts(document.getElementById('financialChart'), {
+                    series: [
+                        { name: 'Precio Compra', data: invData },
+                        { name: 'Valor Mercado', data: valData }
+                    ],
+                    chart: { type: 'bar', height: Math.max(320, horizontalChartData.length * 36), background: 'transparent', fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
+                    plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '60%' } },
+                    colors: ['#E3000B', '#00D26A'],
+                    dataLabels: { enabled: false },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    xaxis: { categories: labelsFin, labels: { style: { colors: textColor, fontFamily: 'IBM Plex Mono, monospace' }, formatter: (v) => `${v.toFixed(0)}€` } },
+                    yaxis: { labels: { style: { colors: textColor } } },
+                    tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v) => `${v.toFixed(2)} €` } },
+                    theme: { mode: isDark ? 'dark' : 'light' }
+                });
+                App.financialChart.render();
+            }
+
+            if (Object.keys(purchaseYearSpend).length > 0 && document.getElementById('yearChart')) {
+                const years = Object.keys(purchaseYearSpend).sort();
+                const data = years.map(y => purchaseYearSpend[y]);
+
+                App.yearChart = new ApexCharts(document.getElementById('yearChart'), {
+                    series: [{ name: 'Inversión', data: data }],
+                    chart: { type: 'bar', height: 280, background: 'transparent', fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
+                    colors: ['#0075FF'],
+                    plotOptions: { bar: { borderRadius: 8, columnWidth: '45%' } },
+                    dataLabels: {
+                        enabled: true,
+                        formatter: (v) => `${v.toFixed(2)}€`,
+                        style: { fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', colors: ['#ffffff'] }
                     },
-                    scales: {
-                        y: { ticks: { color: textColor }, grid: { color: 'rgba(0,0,0,0.05)' }, beginAtZero: true },
-                        x: { ticks: { color: textColor }, grid: { display: false } }
-                    },
-                    maintainAspectRatio: false,
-                    layout: {
-                        padding: {
-                            top: 25 // extra space for labels above bars
-                        }
-                    }
-                }
-            });
-        }
-    },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    xaxis: { categories: years, labels: { style: { colors: textColor } } },
+                    yaxis: { labels: { style: { colors: textColor, fontFamily: 'IBM Plex Mono, monospace' }, formatter: (v) => `${v.toFixed(0)}€` } },
+                    tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v) => `${v.toFixed(2)} €` } },
+                    theme: { mode: isDark ? 'dark' : 'light' }
+                });
+                App.yearChart.render();
+            }
+        },
 
-    // --- MY PIECES VIEW ---
-    async renderMyPieces(container) {
-        const col = Storage.getCollection();
+            // --- MY PIECES VIEW ---
+            async renderMyPieces(container) {
+                const col = Storage.getCollection();
 
-        if (col.length === 0) {
-            container.innerHTML = `
+                if (col.length === 0) {
+                    container.innerHTML = `
                 <div class="view-container">
                     <div class="text-center" style="padding: 80px 20px; color: var(--text-muted);">
                         <i data-lucide="puzzle" style="width:64px;height:64px;margin-bottom:16px;opacity:0.4;"></i>
@@ -972,12 +973,12 @@ const App = {
                     </div>
                 </div>
             `;
-            lucide.createIcons();
-            return;
-        }
+                    lucide.createIcons();
+                    return;
+                }
 
-        // Show the shell with a loading indicator immediately
-        container.innerHTML = `
+                // Show the shell with a loading indicator immediately
+                container.innerHTML = `
             <div class="view-container" id="my-pieces-view">
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
                     <div>
@@ -1029,164 +1030,164 @@ const App = {
                 <div id="pieces-grid" class="my-pieces-grid"></div>
             </div>
         `;
-        lucide.createIcons();
+                lucide.createIcons();
 
-        // If already cached, render immediately
-        if (this.myPiecesState.allPieces !== null) {
-            this._renderPiecesGrid();
-            return;
-        }
+                // If already cached, render immediately
+                if (this.myPiecesState.allPieces !== null) {
+                    this._renderPiecesGrid();
+                    return;
+                }
 
-        // Load all pieces from all sets in parallel (with concurrency limit)
-        this.myPiecesState.loading = true;
-        const setIds = col.map(s => s.set_num);
-        const allRaw = []; // [{piece, setName, setNum}, ...]
-        let loaded = 0;
+                // Load all pieces from all sets in parallel (with concurrency limit)
+                this.myPiecesState.loading = true;
+                const setIds = col.map(s => s.set_num);
+                const allRaw = []; // [{piece, setName, setNum}, ...]
+                let loaded = 0;
 
-        const concurrency = 3; // fetch up to 3 sets at a time
-        const chunks = [];
-        for (let i = 0; i < setIds.length; i += concurrency) {
-            chunks.push(setIds.slice(i, i + concurrency));
-        }
+                const concurrency = 3; // fetch up to 3 sets at a time
+                const chunks = [];
+                for (let i = 0; i < setIds.length; i += concurrency) {
+                    chunks.push(setIds.slice(i, i + concurrency));
+                }
 
-        for (const chunk of chunks) {
-            await Promise.all(chunk.map(async (setId) => {
-                const setObj = col.find(s => s.set_num === setId);
-                const pieces = await API.getSetPieces(setId);
-                pieces.forEach(p => allRaw.push({ ...p, _setName: setObj.name, _setNum: setObj.set_num }));
-                loaded++;
-                // Update progress
-                const progressBar = document.getElementById('progress-bar');
-                const progressText = document.getElementById('progress-text');
-                if (progressBar) progressBar.style.width = `${(loaded / setIds.length) * 100}%`;
-                if (progressText) progressText.textContent = `Descargando piezas de ${loaded} / ${setIds.length} sets...`;
-            }));
-        }
+                for (const chunk of chunks) {
+                    await Promise.all(chunk.map(async (setId) => {
+                        const setObj = col.find(s => s.set_num === setId);
+                        const pieces = await API.getSetPieces(setId);
+                        pieces.forEach(p => allRaw.push({ ...p, _setName: setObj.name, _setNum: setObj.set_num }));
+                        loaded++;
+                        // Update progress
+                        const progressBar = document.getElementById('progress-bar');
+                        const progressText = document.getElementById('progress-text');
+                        if (progressBar) progressBar.style.width = `${(loaded / setIds.length) * 100}%`;
+                        if (progressText) progressText.textContent = `Descargando piezas de ${loaded} / ${setIds.length} sets...`;
+                    }));
+                }
 
-        this.myPiecesState.allPieces = allRaw;
-        this.myPiecesState.loading = false;
-        this._renderPiecesGrid();
-    },
+                this.myPiecesState.allPieces = allRaw;
+                this.myPiecesState.loading = false;
+                this._renderPiecesGrid();
+            },
 
-    _renderPiecesGrid() {
-        const raw = this.myPiecesState.allPieces || [];
+                _renderPiecesGrid() {
+            const raw = this.myPiecesState.allPieces || [];
 
-        // Aggregate: group by part_num+color so we sum quantities
-        const pieceMap = {};
-        raw.forEach(p => {
-            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
-            if (!pieceMap[key]) {
-                pieceMap[key] = {
-                    part: p.part,
-                    color: p.color,
-                    quantity: 0,
-                    sets: new Set()
-                };
+            // Aggregate: group by part_num+color so we sum quantities
+            const pieceMap = {};
+            raw.forEach(p => {
+                const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
+                if (!pieceMap[key]) {
+                    pieceMap[key] = {
+                        part: p.part,
+                        color: p.color,
+                        quantity: 0,
+                        sets: new Set()
+                    };
+                }
+                pieceMap[key].quantity += p.quantity;
+                pieceMap[key].sets.add(p._setNum);
+            });
+
+            let pieces = Object.values(pieceMap);
+            const totalQuantity = pieces.reduce((s, p) => s + p.quantity, 0);
+
+            // Update counters
+            const totalEl = document.getElementById('pieces-total-count');
+            const uniqueEl = document.getElementById('pieces-unique-count');
+            const subtitleEl = document.getElementById('pieces-subtitle');
+            const progressDiv = document.getElementById('pieces-progress');
+
+            if (totalEl) totalEl.textContent = totalQuantity.toLocaleString('es');
+            if (uniqueEl) uniqueEl.textContent = pieces.length.toLocaleString('es');
+            if (subtitleEl) subtitleEl.textContent = `Inventario completo de ${Storage.getCollection().length} set${Storage.getCollection().length !== 1 ? 's' : ''}`;
+            if (progressDiv) progressDiv.remove();
+
+            // Build filter options
+            const uniqueColors = [...new Set(pieces.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
+            const col = Storage.getCollection();
+            const uniqueSets = col.map(s => ({ num: s.set_num, name: s.name }));
+
+            const colorSelect = document.getElementById('filter-color');
+            const setSelect = document.getElementById('filter-set');
+            const filtersBar = document.getElementById('pieces-filters');
+
+            if (colorSelect) {
+                const savedColor = this.myPiecesState.colorFilter;
+                colorSelect.innerHTML = `<option value="all">Todos los colores</option>` +
+                    uniqueColors.map(c => `<option value="${c}" ${savedColor === c ? 'selected' : ''}>${c}</option>`).join('');
             }
-            pieceMap[key].quantity += p.quantity;
-            pieceMap[key].sets.add(p._setNum);
-        });
-
-        let pieces = Object.values(pieceMap);
-        const totalQuantity = pieces.reduce((s, p) => s + p.quantity, 0);
-
-        // Update counters
-        const totalEl = document.getElementById('pieces-total-count');
-        const uniqueEl = document.getElementById('pieces-unique-count');
-        const subtitleEl = document.getElementById('pieces-subtitle');
-        const progressDiv = document.getElementById('pieces-progress');
-
-        if (totalEl) totalEl.textContent = totalQuantity.toLocaleString('es');
-        if (uniqueEl) uniqueEl.textContent = pieces.length.toLocaleString('es');
-        if (subtitleEl) subtitleEl.textContent = `Inventario completo de ${Storage.getCollection().length} set${Storage.getCollection().length !== 1 ? 's' : ''}`;
-        if (progressDiv) progressDiv.remove();
-
-        // Build filter options
-        const uniqueColors = [...new Set(pieces.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
-        const col = Storage.getCollection();
-        const uniqueSets = col.map(s => ({ num: s.set_num, name: s.name }));
-
-        const colorSelect = document.getElementById('filter-color');
-        const setSelect = document.getElementById('filter-set');
-        const filtersBar = document.getElementById('pieces-filters');
-
-        if (colorSelect) {
-            const savedColor = this.myPiecesState.colorFilter;
-            colorSelect.innerHTML = `<option value="all">Todos los colores</option>` +
-                uniqueColors.map(c => `<option value="${c}" ${savedColor === c ? 'selected' : ''}>${c}</option>`).join('');
-        }
-        if (setSelect) {
-            const savedSet = this.myPiecesState.setFilter;
-            setSelect.innerHTML = `<option value="all">Todos los sets</option>` +
-                uniqueSets.map(s => `<option value="${s.num}" ${savedSet === s.num ? 'selected' : ''}>${s.name}</option>`).join('');
-        }
-        const sortSelect = document.getElementById('filter-sort');
-        if (sortSelect) sortSelect.value = this.myPiecesState.sortBy;
-
-        if (filtersBar) {
-            filtersBar.style.opacity = '1';
-            filtersBar.style.pointerEvents = 'auto';
-        }
-
-        this.applyMyPiecesFilters();
-    },
-
-    applyMyPiecesFilters() {
-        const raw = this.myPiecesState.allPieces || [];
-
-        // Read current filter values from DOM
-        const colorSelect = document.getElementById('filter-color');
-        const setSelect = document.getElementById('filter-set');
-        const sortSelect = document.getElementById('filter-sort');
-
-        const colorFilter = colorSelect ? colorSelect.value : 'all';
-        const setFilter = setSelect ? setSelect.value : 'all';
-        const sortBy = sortSelect ? sortSelect.value : 'quantity';
-
-        this.myPiecesState.colorFilter = colorFilter;
-        this.myPiecesState.setFilter = setFilter;
-        this.myPiecesState.sortBy = sortBy;
-
-        // Aggregate
-        const pieceMap = {};
-        raw.forEach(p => {
-            const colorName = p.color && p.color.name ? p.color.name : 'Unknown';
-            // Set filter: skip if not from selected set
-            if (setFilter !== 'all' && p._setNum !== setFilter) return;
-            // Color filter
-            if (colorFilter !== 'all' && colorName !== colorFilter) return;
-
-            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
-            if (!pieceMap[key]) {
-                pieceMap[key] = { part: p.part, color: p.color, colorName, quantity: 0 };
+            if (setSelect) {
+                const savedSet = this.myPiecesState.setFilter;
+                setSelect.innerHTML = `<option value="all">Todos los sets</option>` +
+                    uniqueSets.map(s => `<option value="${s.num}" ${savedSet === s.num ? 'selected' : ''}>${s.name}</option>`).join('');
             }
-            pieceMap[key].quantity += p.quantity;
-        });
+            const sortSelect = document.getElementById('filter-sort');
+            if (sortSelect) sortSelect.value = this.myPiecesState.sortBy;
 
-        let pieces = Object.values(pieceMap);
+            if (filtersBar) {
+                filtersBar.style.opacity = '1';
+                filtersBar.style.pointerEvents = 'auto';
+            }
 
-        // Sort
-        if (sortBy === 'quantity') pieces.sort((a, b) => b.quantity - a.quantity);
-        else if (sortBy === 'quantity_asc') pieces.sort((a, b) => a.quantity - b.quantity);
-        else if (sortBy === 'name') pieces.sort((a, b) => a.part.name.localeCompare(b.part.name));
-        else if (sortBy === 'color') pieces.sort((a, b) => a.colorName.localeCompare(b.colorName));
+            this.applyMyPiecesFilters();
+        },
 
-        const grid = document.getElementById('pieces-grid');
-        if (!grid) return;
+        applyMyPiecesFilters() {
+            const raw = this.myPiecesState.allPieces || [];
 
-        if (pieces.length === 0) {
-            grid.innerHTML = `<div class="my-pieces-empty"><i data-lucide="search-x" style="width:48px;height:48px;margin-bottom:12px;opacity:0.4;"></i><p>No hay piezas con esos filtros</p></div>`;
-            lucide.createIcons();
-            return;
-        }
+            // Read current filter values from DOM
+            const colorSelect = document.getElementById('filter-color');
+            const setSelect = document.getElementById('filter-set');
+            const sortSelect = document.getElementById('filter-sort');
 
-        grid.innerHTML = pieces.map(p => {
-            const img = p.part.part_img_url || 'https://via.placeholder.com/100?text=?';
-            const colorHex = p.color && p.color.rgb ? `#${p.color.rgb}` : null;
-            const colorDot = colorHex
-                ? `<span class="piece-color-dot" style="background:${colorHex};"></span>`
-                : '';
-            return `
+            const colorFilter = colorSelect ? colorSelect.value : 'all';
+            const setFilter = setSelect ? setSelect.value : 'all';
+            const sortBy = sortSelect ? sortSelect.value : 'quantity';
+
+            this.myPiecesState.colorFilter = colorFilter;
+            this.myPiecesState.setFilter = setFilter;
+            this.myPiecesState.sortBy = sortBy;
+
+            // Aggregate
+            const pieceMap = {};
+            raw.forEach(p => {
+                const colorName = p.color && p.color.name ? p.color.name : 'Unknown';
+                // Set filter: skip if not from selected set
+                if (setFilter !== 'all' && p._setNum !== setFilter) return;
+                // Color filter
+                if (colorFilter !== 'all' && colorName !== colorFilter) return;
+
+                const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
+                if (!pieceMap[key]) {
+                    pieceMap[key] = { part: p.part, color: p.color, colorName, quantity: 0 };
+                }
+                pieceMap[key].quantity += p.quantity;
+            });
+
+            let pieces = Object.values(pieceMap);
+
+            // Sort
+            if (sortBy === 'quantity') pieces.sort((a, b) => b.quantity - a.quantity);
+            else if (sortBy === 'quantity_asc') pieces.sort((a, b) => a.quantity - b.quantity);
+            else if (sortBy === 'name') pieces.sort((a, b) => a.part.name.localeCompare(b.part.name));
+            else if (sortBy === 'color') pieces.sort((a, b) => a.colorName.localeCompare(b.colorName));
+
+            const grid = document.getElementById('pieces-grid');
+            if (!grid) return;
+
+            if (pieces.length === 0) {
+                grid.innerHTML = `<div class="my-pieces-empty"><i data-lucide="search-x" style="width:48px;height:48px;margin-bottom:12px;opacity:0.4;"></i><p>No hay piezas con esos filtros</p></div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = pieces.map(p => {
+                const img = p.part.part_img_url || 'https://via.placeholder.com/100?text=?';
+                const colorHex = p.color && p.color.rgb ? `#${p.color.rgb}` : null;
+                const colorDot = colorHex
+                    ? `<span class="piece-color-dot" style="background:${colorHex};"></span>`
+                    : '';
+                return `
                 <div class="my-piece-card" title="${p.part.name}">
                     <div class="my-piece-img-wrap">
                         <img src="${img}" alt="${p.part.name}" loading="lazy">
@@ -1196,146 +1197,115 @@ const App = {
                     <div class="my-piece-num">${p.part.part_num}</div>
                 </div>
             `;
-        }).join('');
-    },
+            }).join('');
+        },
 
-    resetMyPiecesCache() {
-        this.myPiecesState.allPieces = null;
-        this.myPiecesState.colorFilter = 'all';
-        this.myPiecesState.setFilter = 'all';
-        this.renderMyPieces(document.getElementById('main-content'));
-    },
+        resetMyPiecesCache() {
+            this.myPiecesState.allPieces = null;
+            this.myPiecesState.colorFilter = 'all';
+            this.myPiecesState.setFilter = 'all';
+            this.renderMyPieces(document.getElementById('main-content'));
+        },
 
-    clearAllData() {
-        if(confirm("¡Peligro! ¿Estás seguro de que quieres borrar TODA tu colección y lista de deseos de este dispositivo?")) {
-            Storage.clearAll();
-            this.renderProfile(document.getElementById('main-content'));
-            lucide.createIcons();
-        }
-    },
-    logout() {
-        Storage.clearUser();
-        App.navigate('login');
-    },
+        logout() {
+            Storage.clearUser();
+            App.navigate('login');
+        },
 
     // --- MODALS (SET DETAILS & BUILD TRACKER) ---
     async openSetDetails(setId, forceNewPurchase = false) {
-        // Try to get from collection first
-        let set = Storage.getCollection().find(s => s.set_num === setId);
-        let inCol = true;
-        
-        if (!set) {
-            inCol = forceNewPurchase; // If true, we show purchase details anyway
-            // Try wishlist
-            set = Storage.getWishlist().find(s => s.set_num === setId);
+            // Try to get from collection first
+            let set = Storage.getCollection().find(s => s.set_num === setId);
+            let inCol = true;
+
             if (!set) {
-                // Must be from search results
-                set = this.searchState.results.find(s => s.set_num === setId);
+                inCol = forceNewPurchase; // If true, we show purchase details anyway
+                // Try wishlist
+                set = Storage.getWishlist().find(s => s.set_num === setId);
+                if (!set) {
+                    // Must be from search results
+                    set = this.searchState.results.find(s => s.set_num === setId);
+                }
+                if (!set && this.pendingAddSet && this.pendingAddSet.set_num === setId) {
+                    set = this.pendingAddSet;
+                }
             }
-            if (!set && this.pendingAddSet && this.pendingAddSet.set_num === setId) {
-                set = this.pendingAddSet;
-            }
-        }
 
-        if (set) {
-            UI.renderSetDetails(set, inCol);
-        }
-    },
-
-    handlePurchaseTypeChange(selectElem, estimatedPrice) {
-        const group = document.getElementById('purchase-price-group');
-        const priceInput = document.getElementById('purchase-price');
-        
-        if (selectElem.value === 'gift') {
-            group.style.display = 'none';
-            priceInput.value = 0;
-        } else {
-            group.style.display = 'block';
-            if (selectElem.value === 'self') {
-                priceInput.value = estimatedPrice;
-            } else if (selectElem.value === 'partial') {
-                priceInput.value = '';
+            if (set) {
+                UI.renderSetDetails(set, inCol);
             }
-        }
-    },
+        },
+
+        handlePurchaseTypeChange(selectElem, estimatedPrice) {
+            const group = document.getElementById('purchase-price-group');
+            const priceInput = document.getElementById('purchase-price');
+
+            if (selectElem.value === 'gift') {
+                group.style.display = 'none';
+                priceInput.value = 0;
+            } else {
+                group.style.display = 'block';
+                if (selectElem.value === 'self') {
+                    priceInput.value = estimatedPrice;
+                } else if (selectElem.value === 'partial') {
+                    priceInput.value = '';
+                }
+            }
+        },
 
     async savePurchaseDetails(setId) {
-        const type = document.getElementById('purchase-type').value;
-        const priceInput = document.getElementById('purchase-price');
-        const dateInput = document.getElementById('purchase-date');
+            const type = document.getElementById('purchase-type').value;
+            const priceInput = document.getElementById('purchase-price');
+            const dateInput = document.getElementById('purchase-date');
 
-        const price = parseFloat(priceInput.value) || 0;
-        const acquisitionDate = dateInput.value || new Date().toISOString().split('T')[0];
+            const price = parseFloat(priceInput.value) || 0;
+            const acquisitionDate = dateInput.value || new Date().toISOString().split('T')[0];
 
-        let set = Storage.getCollection().find(s => s.set_num === setId);
-        let isNew = false;
-        
-        if (!set && this.pendingAddSet && this.pendingAddSet.set_num === setId) {
-            set = this.pendingAddSet;
-            isNew = true;
-        }
+            let set = Storage.getCollection().find(s => s.set_num === setId);
+            let isNew = false;
 
-        if (isNew) {
-            const added = await Storage.addToCollection(set);
-            if (added) {
-                const freshItem = Storage.getCollection().find(s => s.set_num === setId);
-                if (freshItem && freshItem.itemId) {
-                    await Storage.updateSetInCollection(freshItem.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
-                }
-                this.pendingAddSet = null;
-                this.myPiecesState.allPieces = null;
-                UI.showToast("Añadido a Colección con datos de compra", "success");
+            if (!set && this.pendingAddSet && this.pendingAddSet.set_num === setId) {
+                set = this.pendingAddSet;
+                isNew = true;
             }
-        } else if (set && set.itemId) {
-            await Storage.updateSetInCollection(set.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
-            UI.showToast("Datos de compra actualizados", "success");
-        }
-        
-        UI.closeModal(null, true);
-        if (this.currentView === 'collection') {
-            this.navigate('collection');
-        }
-    },
+
+            if (isNew) {
+                const added = await Storage.addToCollection(set);
+                if (added) {
+                    const freshItem = Storage.getCollection().find(s => s.set_num === setId);
+                    if (freshItem && freshItem.itemId) {
+                        await Storage.updateSetInCollection(freshItem.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
+                    }
+                    this.pendingAddSet = null;
+                    this.myPiecesState.allPieces = null;
+                    UI.showToast("Añadido a Colección con datos de compra", "success");
+                }
+            } else if (set && set.itemId) {
+                await Storage.updateSetInCollection(set.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
+                UI.showToast("Datos de compra actualizados", "success");
+            }
+
+            UI.closeModal(null, true);
+            if (this.currentView === 'collection') {
+                this.navigate('collection');
+            }
+        },
 
     async viewPieces(setId) {
-        UI.showModal('<div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Cargando piezas...</div>');
-        lucide.createIcons();
-        const pieces = await API.getSetPieces(setId);
-        UI.renderPiecesList(pieces);
-    },
-
-    handlePurchaseTypeChange(selectElement, defaultPrice) {
-        const group = document.getElementById('purchase-price-group');
-        const priceInput = document.getElementById('purchase-price');
-        if (selectElement.value === 'gift') {
-            group.style.display = 'none';
-            priceInput.value = 0;
-        } else {
-            group.style.display = 'block';
-            if (selectElement.value === 'self' && (!priceInput.value || priceInput.value == 0)) {
-                priceInput.value = defaultPrice;
-            }
+            UI.showModal('<div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Cargando piezas...</div>');
+            lucide.createIcons();
+            const pieces = await API.getSetPieces(setId);
+            UI.renderPiecesList(pieces);
         }
-    }
-};
+    };
 
-// Initialize App on load
-document.addEventListener('DOMContentLoaded', () => {
-    App.init();
-});
+    // Initialize App on load
+    document.addEventListener('DOMContentLoaded', () => {
+        App.init();
+    });
 
-document.addEventListener('themeChanged', () => {
-    if (App.currentView === 'profile') {
-        const color = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#6B685F';
-        
-        if (App.themeChart) {
-            App.themeChart.options.plugins.legend.labels.color = color;
-            App.themeChart.update();
+    document.addEventListener('themeChanged', () => {
+        if (App.currentView === 'profile') {
+            App.navigate('profile');
         }
-        if (App.yearChart) {
-            App.yearChart.options.scales.x.ticks.color = color;
-            App.yearChart.options.scales.y.ticks.color = color;
-            App.yearChart.update();
-        }
-    }
-});
+    });

@@ -38,13 +38,26 @@ body {
     overflow-x: hidden;
 }
 
-#main-content {
-    flex: 1;
-    padding: 30px;
-    width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
-    overflow-y: auto;
+@media (min-width: 769px) {
+    #app-container {
+        flex-direction: row;
+    }
+
+    #main-content {
+        flex: 1;
+        margin-left: 260px;
+        width: calc(100% - 260px);
+        max-width: 1500px;
+        padding: 32px 40px;
+    }
+}
+
+@media (max-width: 768px) {
+    #main-content {
+        flex: 1;
+        padding: 20px 16px 85px 16px;
+        width: 100%;
+    }
 }
 
 /* Scrollbar */

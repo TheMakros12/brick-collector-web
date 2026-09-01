@@ -34,38 +34,44 @@
     <!-- html2pdf.js for PDFs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
-    <!-- Chart.js for Profile -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- ApexCharts for Premium Dashboard Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
     <div id="app-container">
-        <!-- Barra de navegación principal superior -->
+        <!-- Barra de navegación / Sidebar principal -->
         <nav id="main-nav" class="hidden">
-            <div class="nav-brand" style="font-size: 1.35rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 10px;">
-                <i data-lucide="blocks"></i> BrickCollector
+            <div class="nav-brand-container">
+                <img src="Lego.webp" alt="LEGO® Logo" class="nav-logo-img">
+                <div class="nav-brand-text">
+                    <span class="nav-title">BrickCollector</span>
+                    <span class="nav-subtitle"><i data-lucide="blocks" style="width:12px;height:12px;"></i> Gestor LEGO®</span>
+                </div>
             </div>
+
             <div class="nav-links">
                 <button class="nav-btn active" data-view="search">
                     <i data-lucide="search"></i>
-                    <span>Buscar</span>
+                    <span>Buscar Sets</span>
                 </button>
                 <button class="nav-btn" data-view="collection">
                     <i data-lucide="layers"></i>
-                    <span>Mis Legos</span>
+                    <span>Mi Colección</span>
                 </button>
                 <button class="nav-btn" data-view="pieces">
                     <i data-lucide="puzzle"></i>
                     <span>Mis Piezas</span>
                 </button>
                 <button class="nav-btn" data-view="profile">
-                    <i data-lucide="user"></i>
-                    <span>Perfil</span>
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Estadísticas</span>
                 </button>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <button class="nav-btn theme-toggle-btn" onclick="toggleTheme()" aria-label="Cambiar tema">
+
+            <div class="nav-footer">
+                <button class="theme-toggle-btn-full" onclick="toggleTheme()" aria-label="Cambiar tema">
                     <i id="theme-icon" data-lucide="moon"></i>
+                    <span>Modo Oscuro</span>
                 </button>
             </div>
         </nav>

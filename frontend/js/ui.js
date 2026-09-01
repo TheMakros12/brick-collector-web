@@ -174,7 +174,7 @@ const UI = {
         const content = `
             <!-- HEADER -->
             <div class="text-center mb-4" style="background: var(--bg-surface-muted); border-radius: var(--radius-md); padding: 20px;">
-                <img src="${imageUrl}" alt="${set.name}" style="max-width: 100%; max-height: 250px; object-fit: contain;">
+                <img src="${imageUrl}" alt="${set.name}" style="max-width: 100%; max-height: 250px; object-fit: contain; mix-blend-mode: multiply;">
             </div>
             
             <div style="text-align: center; margin-bottom: 20px;">
