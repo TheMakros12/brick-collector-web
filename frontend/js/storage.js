@@ -2,38 +2,7 @@ const Storage = {
     _collectionCache: [],
     _wishlistCache: [],
 
-    async runMigration() {
-        const oldCol = localStorage.getItem('brickcollector_collection');
-        const oldWish = localStorage.getItem('brickcollector_wishlist');
-        
-        if (oldCol) {
-            console.log("Migrando Colección...");
-            const items = JSON.parse(oldCol);
-            for (let set of items) {
-                try {
-                    await API.fetchBackend('/collection/add', {
-                        method: 'POST',
-                        body: JSON.stringify({ setId: set.set_num, type: 'COLLECTION' })
-                    });
-                } catch(e) { console.error("Error migrando", set.set_num) }
-            }
-            localStorage.removeItem('brickcollector_collection');
-        }
-        
-        if (oldWish) {
-            console.log("Migrando Wishlist...");
-            const items = JSON.parse(oldWish);
-            for (let set of items) {
-                try {
-                    await API.fetchBackend('/collection/add', {
-                        method: 'POST',
-                        body: JSON.stringify({ setId: set.set_num, type: 'WISHLIST' })
-                    });
-                } catch(e) { console.error("Error migrando", set.set_num) }
-            }
-            localStorage.removeItem('brickcollector_wishlist');
-        }
-    },
+
 
     async fetchAll() {
         try {
@@ -52,7 +21,9 @@ const Storage = {
                 theme_id: item.legoSet.theme_id,
                 purchaseDetails: {
                     pricePaid: item.purchasePrice,
-                    purchaseYear: item.purchaseYear
+                    purchaseYear: item.purchaseYear,
+                    acquisitionDate: item.acquisitionDate,
+                    type: item.acquisitionType ? (item.acquisitionType.toLowerCase() === 'purchased' ? 'self' : item.acquisitionType.toLowerCase()) : 'self'
                 }
             });
 
@@ -84,17 +55,27 @@ const Storage = {
         const item = Storage.getCollection().find(s => s.set_num === setId);
         if (item && item.itemId) {
             try {
-                await API.fetchBackend(`/collection/remove/${item.itemId}`, { method: 'DELETE' });
+                await API.fetchBackend(`/collection/remove/${item.itemId}?type=COLLECTION`, { method: 'DELETE' });
                 await Storage.fetchAll();
             } catch(e) { console.error(e); }
         }
     },
 
-    updateSetInCollection: async (itemId, purchasePrice, purchaseYear) => {
+    updateSetInCollection: async (itemId, purchasePrice, acquisitionDate, acquisitionType) => {
         try {
+            let apiType = 'PURCHASED';
+            if (acquisitionType === 'gift' || acquisitionType === 'GIFT') apiType = 'GIFT';
+            else if (acquisitionType === 'partial' || acquisitionType === 'PARTIAL') apiType = 'PARTIAL';
+
+            let purchaseYear = null;
+            if (acquisitionDate) {
+                const parts = acquisitionDate.split('-');
+                if (parts.length > 0) purchaseYear = parseInt(parts[0]);
+            }
+
             await API.fetchBackend(`/collection/update/${itemId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ purchasePrice, purchaseYear })
+                body: JSON.stringify({ purchasePrice, acquisitionDate, purchaseYear, acquisitionType: apiType })
             });
             await Storage.fetchAll();
         } catch (e) {
@@ -120,7 +101,7 @@ const Storage = {
         const item = Storage.getWishlist().find(s => s.set_num === setId);
         if (item && item.itemId) {
             try {
-                await API.fetchBackend(`/collection/remove/${item.itemId}`, { method: 'DELETE' });
+                await API.fetchBackend(`/collection/remove/${item.itemId}?type=WISHLIST`, { method: 'DELETE' });
                 await Storage.fetchAll();
             } catch(e) { console.error(e); }
         }

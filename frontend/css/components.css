@@ -18,6 +18,12 @@
     color: var(--text-primary) !important;
 }
 
+.nav-links {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+}
+
 .nav-btn {
     background: none;
     border: none;
@@ -46,12 +52,88 @@
     border-bottom-color: var(--accent);
 }
 
+/* Mobile Bottom Navigation Bar (iPhone / Mobile Thumb-friendly) */
+.mobile-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #main-nav .nav-links {
+        display: none !important;
+    }
+
+    #main-nav {
+        padding: 0 16px;
+        height: 60px;
+    }
+
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(65px + var(--safe-area-bottom));
+        padding-bottom: var(--safe-area-bottom);
+        background: var(--bg-surface);
+        border-top: 1px solid var(--border);
+        z-index: 90;
+        justify-content: space-around;
+        align-items: center;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    }
+
+    .mobile-nav-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        flex: 1;
+        height: 100%;
+        padding: 6px 0;
+        cursor: pointer;
+        transition: color 0.2s, transform 0.1s;
+        touch-action: manipulation;
+    }
+
+    .mobile-nav-btn i {
+        width: 22px;
+        height: 22px;
+    }
+
+    .mobile-nav-btn span {
+        font-size: 0.72rem;
+        font-weight: 500;
+    }
+
+    .mobile-nav-btn.active {
+        color: var(--accent);
+    }
+
+    .mobile-nav-btn:active {
+        transform: scale(0.95);
+    }
+}
+
 /* Grids for cards */
 #search-results,
 #collection-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 25px;
+}
+
+@media (max-width: 640px) {
+    #search-results,
+    #collection-list {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
 }
 
 /* Glassmorphism View Container (Removed blur, just fade) */
@@ -173,6 +255,7 @@
     margin-bottom: 10px;
     line-height: 1.3;
     color: var(--text-primary);
+    word-break: break-word;
 }
 
 .set-meta {
@@ -181,6 +264,7 @@
     color: var(--text-secondary);
     font-size: 0.9rem;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 
 .set-meta span {
@@ -203,12 +287,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.55);
     display: flex;
     align-items: flex-end;
     justify-content: center;
     z-index: 100;
     animation: fadeInModal 0.2s ease-out;
+    backdrop-filter: blur(4px);
 }
 
 .modal-content {
@@ -223,6 +308,16 @@
     border: 1px solid var(--border);
     animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        padding: 20px 16px (24px + var(--safe-area-bottom)) 16px;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        max-height: 92vh;
+        margin-bottom: 0;
+    }
 }
 
 .modal-section {
@@ -263,21 +358,24 @@
     }
 }
 
+/* Touch Friendly Close Modal Button (40x40px min hit box) */
 .modal-close {
     position: absolute;
-    top: 15px;
-    right: 15px;
+    top: 12px;
+    right: 12px;
     background: var(--bg-surface-muted);
     border: 1px solid var(--border);
     color: var(--text-secondary);
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: var(--radius-pill);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: background 0.2s;
+    touch-action: manipulation;
+    z-index: 10;
 }
 
 .modal-close:hover {
@@ -293,9 +391,16 @@
     margin-bottom: 25px;
 }
 
+@media (max-width: 480px) {
+    .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
 .stat-card {
     background: var(--bg-surface-muted);
-    padding: 20px;
+    padding: 20px 12px;
     border-radius: var(--radius-lg);
     text-align: center;
     border: 1px solid var(--border);
@@ -304,22 +409,23 @@
 }
 
 .stat-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-3px);
     box-shadow: 0 10px 15px -3px rgba(0,0,0, 0.1);
     border-color: var(--border-strong);
     background: var(--bg-surface);
 }
 
 .stat-value {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 600;
     color: var(--accent);
     margin-bottom: 5px;
     font-family: 'Space Grotesk', sans-serif;
+    word-break: break-all;
 }
 
 .stat-label {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-secondary);
     font-weight: 500;
     text-transform: uppercase;
@@ -364,6 +470,7 @@
     gap: 15px;
     align-items: center;
     transition: transform 0.2s, border-color 0.2s;
+    width: 100%;
 }
 
 .highlight-set-card:hover {
@@ -372,12 +479,13 @@
 }
 
 .highlight-set-img {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
     object-fit: contain;
     background: var(--bg-surface-muted);
     border-radius: var(--radius-sm);
     padding: 5px;
+    flex-shrink: 0;
 }
 
 [data-theme="dark"] .highlight-set-img {
@@ -496,6 +604,12 @@
     gap: 10px;
 }
 
+@media (max-width: 480px) {
+    .grid-pieces {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 .piece-card {
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -520,13 +634,22 @@
 /* Toast Notifications */
 .toast-container {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: 80px;
+    right: 16px;
+    left: 16px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     z-index: 9999;
     pointer-events: none;
+}
+
+@media (min-width: 769px) {
+    .toast-container {
+        left: auto;
+        bottom: 20px;
+        right: 20px;
+    }
 }
 
 .toast {
@@ -593,8 +716,8 @@
 
 .my-pieces-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
     animation: fadeIn 0.3s ease-out;
 }
 
@@ -602,7 +725,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 14px 10px 12px;
+    padding: 12px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -619,8 +742,8 @@
 }
 
 .my-piece-img-wrap {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -661,7 +784,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 90px;
+    max-width: 80px;
 }
 
 .piece-color-dot {

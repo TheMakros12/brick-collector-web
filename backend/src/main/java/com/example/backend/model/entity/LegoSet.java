@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "sets")
+@Table(name = "lego_set")
 @Data
 @NoArgsConstructor
 public class LegoSet {

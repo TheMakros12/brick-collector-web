@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "themes")
+@Table(name = "theme")
 @Data
 @NoArgsConstructor
 public class Theme {

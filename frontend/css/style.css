@@ -3,12 +3,19 @@
     --radius-md: 8px;
     --radius-lg: 12px;
     --radius-pill: 999px;
+
+    /* Safe Area Insets for iOS / iPhone */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -17,11 +24,15 @@ body {
     color: var(--text-primary);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    padding-top: var(--safe-area-top);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
 }
 
 #app-container {
     width: 100%;
     min-height: 100vh;
+    min-height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
@@ -38,8 +49,8 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 ::-webkit-scrollbar-track {
     background: transparent;
@@ -83,26 +94,31 @@ h1, h2, h3, h4 {
 .rounded-md { border-radius: var(--radius-md); }
 .font-bold { font-weight: 700; }
 
-/* Buttons */
+/* Touch Friendly Buttons (min 44px height for mobile touch targets) */
 .btn {
     background: var(--accent);
     color: var(--bg-surface);
     border: 1px solid var(--accent);
     padding: 10px 18px;
+    min-height: 44px;
     border-radius: var(--radius-md);
     font-family: 'Inter', sans-serif;
     font-weight: 500;
     font-size: 0.95rem;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    touch-action: manipulation;
 }
 .btn:hover {
     background: var(--accent-text);
     border-color: var(--accent-text);
+}
+.btn:active {
+    transform: scale(0.98);
 }
 .btn-outline {
     background: transparent;
@@ -123,7 +139,7 @@ h1, h2, h3, h4 {
     border-color: var(--warning-text);
 }
 
-/* Inputs */
+/* Inputs - iOS 16px font-size prevents unwanted auto-zoom on focus */
 .input-group {
     display: flex;
     flex-direction: column;
@@ -139,8 +155,9 @@ h1, h2, h3, h4 {
     border: 1px solid var(--border);
     color: var(--text-primary);
     padding: 12px 15px;
+    min-height: 44px;
     border-radius: var(--radius-md);
-    font-size: 1rem;
+    font-size: 16px;
     font-family: 'Inter', sans-serif;
     outline: none;
     transition: border-color 0.2s;
@@ -155,4 +172,24 @@ select.input-field {
     background-position: right 15px center;
     background-size: 16px;
     padding-right: 40px;
+}
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+    #main-content {
+        padding: 16px 12px 85px 12px; /* Extra bottom padding so content isn't covered by bottom nav */
+    }
+
+    /* Modal adjustments for mobile */
+    .modal-overlay {
+        align-items: flex-end;
+    }
+    
+    .modal-content {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        max-height: 92vh;
+        padding: 24px 16px (24px + var(--safe-area-bottom)) 16px;
+        margin-bottom: 0;
+    }
 }

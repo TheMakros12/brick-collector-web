@@ -8,4 +8,6 @@ public class ListItemDTO {
     private LegoSetDTO legoSet;
     private Double purchasePrice;
     private Integer purchaseYear;
+    private String acquisitionDate;
+    private String acquisitionType;
 }

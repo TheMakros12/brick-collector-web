@@ -1,5 +1,5 @@
 const App = {
-    currentView: 'login',
+    currentView: 'search',
     searchState: {
         results: [],
         query: '',
@@ -24,11 +24,11 @@ const App = {
     async init() {
         API.loadAllThemes(); // Load themes mapping in background
         
-        // Navigation Listeners
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        // Navigation Listeners (Top nav & Mobile bottom nav)
+        document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const view = e.currentTarget.dataset.view;
-                App.navigate(view);
+                if (view) App.navigate(view);
             });
         });
 
@@ -41,8 +41,18 @@ const App = {
             }
         });
 
-        // Migration and initial load
-        await Storage.runMigration();
+        // Automatically unregister any old stuck Service Workers
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (let reg of registrations) {
+                    reg.unregister();
+                }
+            }).catch(err => {
+                console.log('SW unregister note:', err);
+            });
+        }
+
+        // Initial load
         await Storage.fetchAll();
 
         App.navigate('search');
@@ -52,17 +62,20 @@ const App = {
         this.currentView = view;
         const main = document.getElementById('main-content');
         const nav = document.getElementById('main-nav');
+        const mobileNav = document.getElementById('mobile-bottom-nav');
         
-        // Update nav active state
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        // Update nav active state (both top and bottom mobile nav)
+        document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.view === view);
         });
 
-        nav.classList.remove('hidden');
+        if (nav) nav.classList.remove('hidden');
+        if (mobileNav) mobileNav.classList.remove('hidden');
+
         if (view === 'search') this.renderSearch(main);
-            else if (view === 'collection') this.renderCollection(main);
-            else if (view === 'pieces') this.renderMyPieces(main);
-            else if (view === 'profile') this.renderProfile(main);
+        else if (view === 'collection') this.renderCollection(main);
+        else if (view === 'pieces') this.renderMyPieces(main);
+        else if (view === 'profile') this.renderProfile(main);
         
         lucide.createIcons();
     },
@@ -497,7 +510,7 @@ const App = {
 
         col.forEach(s => {
             const p = s.num_parts || 0;
-            const v = s.retail_price || 0;
+            const v = (s.market_value !== undefined && s.market_value !== null && s.market_value > 0) ? s.market_value : (s.retail_price || 0);
             const y = s.year || 0;
             // Only add to totalPieces from num_parts if cache is NOT available
             if (!piecesCache || piecesCache.length === 0) {
@@ -506,7 +519,8 @@ const App = {
             totalValue += v;
             
             if (!largestSet || p > (largestSet.num_parts || 0)) largestSet = s;
-            if (!mostValuableSet || v > (mostValuableSet.retail_price || 0)) mostValuableSet = s;
+            const topSetMarketVal = mostValuableSet ? ((mostValuableSet.market_value !== undefined && mostValuableSet.market_value !== null && mostValuableSet.market_value > 0) ? mostValuableSet.market_value : (mostValuableSet.retail_price || 0)) : 0;
+            if (!mostValuableSet || v > topSetMarketVal) mostValuableSet = s;
             if (y > 0 && (!oldestSet || y < (oldestSet.year || 9999))) oldestSet = s;
 
             if (s.theme_id) {
@@ -751,7 +765,7 @@ const App = {
                         <h3 class="mb-3" style="font-family: 'Space Grotesk', sans-serif;">Tops de Colección</h3>
                         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
                             ${renderHighlight("El Más Grande", largestSet, `<span style="font-family: 'IBM Plex Mono', monospace;">${largestSet?.num_parts}</span> piezas`)}
-                            ${renderHighlight("El Más Valioso", mostValuableSet, `<span style="font-family: 'IBM Plex Mono', monospace;">€${mostValuableSet?.retail_price || 0}</span>`)}
+                            ${renderHighlight("El Más Valioso", mostValuableSet, `<span style="font-family: 'IBM Plex Mono', monospace;">€${(mostValuableSet?.market_value && mostValuableSet?.market_value > 0) ? mostValuableSet.market_value : (mostValuableSet?.retail_price || 0)}</span>`)}
                             ${renderHighlight("El Más Antiguo", oldestSet, `Año <span style="font-family: 'IBM Plex Mono', monospace;">${oldestSet?.year}</span>`)}
                             ${renderHighlight("Mejor Precio/Pieza", bestPricePerPieceSet, bestPricePerPiece !== Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">€${bestPricePerPiece.toFixed(2)}</span>/pz` : '-')}
                             ${renderHighlight("Mayor Revalorización", highestRevalSet, highestRevalPct !== -Infinity ? `<span style="font-family: 'IBM Plex Mono', monospace;">+${highestRevalPct.toFixed(1)}%</span>` : '-')}
@@ -808,13 +822,15 @@ const App = {
                     }]
                 },
                 options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
                     plugins: { 
                         datalabels: {
                             color: '#ffffff',
                             font: { weight: 'bold', size: 13 },
                             formatter: (value) => value
                         },
-                        legend: { position: 'right', labels: { color: textColor } } 
+                        legend: { position: window.innerWidth < 480 ? 'bottom' : 'right', labels: { color: textColor } } 
                     } 
                 }
             });
@@ -1245,9 +1261,11 @@ const App = {
 
     async savePurchaseDetails(setId) {
         const type = document.getElementById('purchase-type').value;
-        const price = parseFloat(document.getElementById('purchase-price').value) || 0;
-        const year = parseInt(document.getElementById('purchase-year').value) || new Date().getFullYear();
-        const retail = parseFloat(document.getElementById('purchase-retail').value) || null;
+        const priceInput = document.getElementById('purchase-price');
+        const dateInput = document.getElementById('purchase-date');
+
+        const price = parseFloat(priceInput.value) || 0;
+        const acquisitionDate = dateInput.value || new Date().toISOString().split('T')[0];
 
         let set = Storage.getCollection().find(s => s.set_num === setId);
         let isNew = false;
@@ -1257,26 +1275,25 @@ const App = {
             isNew = true;
         }
 
-        if (set) {
-            set.purchaseDetails = {
-                type: type,
-                pricePaid: type === 'gift' ? 0 : price,
-                retailPrice: retail,
-                purchaseYear: year
-            };
-            
-            if (isNew) {
-                const added = await Storage.addToCollection(set);
-                if(added) {
-                    this.pendingAddSet = null;
-                    this.myPiecesState.allPieces = null;
-                    UI.showToast("Añadido a Colección con datos de compra", "success");
+        if (isNew) {
+            const added = await Storage.addToCollection(set);
+            if (added) {
+                const freshItem = Storage.getCollection().find(s => s.set_num === setId);
+                if (freshItem && freshItem.itemId) {
+                    await Storage.updateSetInCollection(freshItem.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
                 }
-            } else {
-                Storage.updateSetInCollection(set);
-                UI.showToast("Datos de compra actualizados", "success");
+                this.pendingAddSet = null;
+                this.myPiecesState.allPieces = null;
+                UI.showToast("Añadido a Colección con datos de compra", "success");
             }
-            UI.renderSetDetails(set, true);
+        } else if (set && set.itemId) {
+            await Storage.updateSetInCollection(set.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
+            UI.showToast("Datos de compra actualizados", "success");
+        }
+        
+        UI.closeModal(null, true);
+        if (this.currentView === 'collection') {
+            this.navigate('collection');
         }
     },
 
@@ -1298,23 +1315,6 @@ const App = {
             if (selectElement.value === 'self' && (!priceInput.value || priceInput.value == 0)) {
                 priceInput.value = defaultPrice;
             }
-        }
-    },
-
-    async savePurchaseDetails(setId) {
-        const type = document.getElementById('purchase-type').value;
-        const priceInput = document.getElementById('purchase-price');
-        const yearInput = document.getElementById('purchase-year');
-        
-        const purchasePrice = parseFloat(priceInput.value) || 0;
-        const purchaseYear = parseInt(yearInput.value) || new Date().getFullYear();
-        
-        const item = Storage.getCollection().find(s => s.set_num === setId);
-        if (item && item.itemId) {
-            await Storage.updateSetInCollection(item.itemId, purchasePrice, purchaseYear);
-            UI.showToast('Detalles de compra guardados', 'success');
-            UI.closeModal(null, true);
-            App.navigate('collection'); // refresh
         }
     }
 };

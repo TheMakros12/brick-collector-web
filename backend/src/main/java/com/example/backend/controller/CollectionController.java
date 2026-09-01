@@ -52,16 +52,15 @@ public class CollectionController {
 
     @DeleteMapping("/remove/{itemId}")
     public ResponseEntity<?> removeSet(@PathVariable Long itemId, @RequestParam(required = false) String type) {
-        // En el frontend storage.js, remove/ se llama pasándole el itemId de la tabla origen. 
-        // Desafortunadamente el frontend no le pasa si es COLLECTION o WISHLIST.
-        // Solución rápida: intentar borrar en ambos.
         try {
-            try {
-                collectionService.removeItem(itemId);
-            } catch(Exception e) {}
-            try {
+            if ("WISHLIST".equalsIgnoreCase(type)) {
                 wishlistService.removeItem(itemId);
-            } catch(Exception e) {}
+            } else if ("COLLECTION".equalsIgnoreCase(type)) {
+                collectionService.removeItem(itemId);
+            } else {
+                try { collectionService.removeItem(itemId); } catch(Exception e) {}
+                try { wishlistService.removeItem(itemId); } catch(Exception e) {}
+            }
             return ResponseEntity.ok(Map.of("message", "Eliminado correctamente"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -72,8 +71,10 @@ public class CollectionController {
     public ResponseEntity<?> updateSet(@PathVariable Long itemId, @RequestBody Map<String, Object> payload) {
         try {
             Double purchasePrice = payload.get("purchasePrice") != null ? Double.valueOf(payload.get("purchasePrice").toString()) : null;
+            String acquisitionDate = payload.get("acquisitionDate") != null ? payload.get("acquisitionDate").toString() : null;
             Integer purchaseYear = payload.get("purchaseYear") != null ? Integer.valueOf(payload.get("purchaseYear").toString()) : null;
-            ListItemDTO updated = collectionService.updateSet(itemId, purchasePrice, purchaseYear);
+            String acquisitionType = payload.get("acquisitionType") != null ? payload.get("acquisitionType").toString() : null;
+            ListItemDTO updated = collectionService.updateSet(itemId, purchasePrice, acquisitionDate, purchaseYear, acquisitionType);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

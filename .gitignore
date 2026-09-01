@@ -1,13 +1,29 @@
-# IDEs
+# IDE & Editor files
 .idea/
 .vscode/
 *.swp
+*.iml
 
-# Spring Boot / Java
-backend/target/
-backend/*.log
-backend/src/main/resources/application-local.properties
-
-# Frontend
-frontend/node_modules/
+# OS Generated
 .DS_Store
+Thumbs.db
+
+# Java & Maven
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# Databases & Local Data
+backend/data/
+*.mv.db
+*.trace.db
+
+# Environment & Secrets
+backend/src/main/resources/application-local.properties
+.env
+
+# Node & Frontend
+**/node_modules/

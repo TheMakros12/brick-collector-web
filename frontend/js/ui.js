@@ -105,10 +105,11 @@ const UI = {
 
     showModal(contentHtml) {
         const container = document.getElementById('modal-container');
+        document.body.style.overflow = 'hidden';
         container.innerHTML = `
             <div class="modal-overlay" onclick="UI.closeModal(event)">
                 <div class="modal-content" onclick="event.stopPropagation()">
-                    <button class="modal-close" onclick="UI.closeModal(null, true)">
+                    <button class="modal-close" onclick="UI.closeModal(null, true)" aria-label="Cerrar modal">
                         <i data-lucide="x"></i>
                     </button>
                     ${contentHtml}
@@ -120,12 +121,15 @@ const UI = {
 
     closeModal(event, force = false) {
         if (force || (event && event.target.classList.contains('modal-overlay'))) {
+            document.body.style.overflow = '';
             document.getElementById('modal-container').innerHTML = '';
         }
     },    renderSetDetails(set, isInCollection) {
         const imageUrl = set.set_img_url || 'https://via.placeholder.com/300?text=No+Image';
-        const pYear = set.purchase_year || new Date().getFullYear();
-        const pPrice = set.purchase_price !== null ? set.purchase_price : (set.retail_price || 0);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const pDate = (set.purchaseDetails && (set.purchaseDetails.acquisitionDate || (set.purchaseDetails.purchaseYear ? `${set.purchaseDetails.purchaseYear}-01-01` : null))) || set.acquisition_date || todayStr;
+        const pPrice = (set.purchaseDetails && set.purchaseDetails.pricePaid !== undefined) ? set.purchaseDetails.pricePaid : (set.purchase_price !== null ? set.purchase_price : (set.retail_price || 0));
+        const acqType = (set.purchaseDetails && set.purchaseDetails.type) || 'self';
 
         let purchaseHtml = '';
         let actionsHtml = '';
@@ -137,9 +141,9 @@ const UI = {
                     <div class="input-group">
                         <label>Método de Adquisición</label>
                         <select id="purchase-type" class="input-field" onchange="App.handlePurchaseTypeChange(this, ${set.retail_price || 0})">
-                            <option value="self" selected>🛍️ Comprado por mí</option>
-                            <option value="gift">🎁 Fue un regalo</option>
-                            <option value="partial">🤝 Pago compartido / Segunda mano</option>
+                            <option value="self" ${acqType === 'self' || acqType === 'PURCHASED' ? 'selected' : ''}>🛍️ Comprado por mí</option>
+                            <option value="gift" ${acqType === 'gift' || acqType === 'GIFT' ? 'selected' : ''}>🎁 Fue un regalo</option>
+                            <option value="partial" ${acqType === 'partial' || acqType === 'PARTIAL' ? 'selected' : ''}>🤝 Pago compartido / Segunda mano</option>
                         </select>
                     </div>
                     <div class="input-group" id="purchase-price-group">
@@ -151,8 +155,8 @@ const UI = {
                         <input type="number" id="purchase-retail" class="input-field" step="0.01" value="${set.retail_price || ''}" readonly style="opacity:0.7">
                     </div>
                     <div class="input-group">
-                        <label>Año de Compra</label>
-                        <input type="number" id="purchase-year" class="input-field" value="${pYear}" min="1900" max="2100">
+                        <label>Fecha de Compra (Día / Mes / Año)</label>
+                        <input type="date" id="purchase-date" class="input-field" value="${pDate}">
                     </div>
                     <div style="margin-top: auto; padding-top: 10px;">
                         <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Detalles</button>

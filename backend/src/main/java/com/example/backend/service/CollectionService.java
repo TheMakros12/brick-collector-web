@@ -83,16 +83,41 @@ public class CollectionService {
     }
     
     @Transactional
-    public ListItemDTO updateSet(Long itemId, Double purchasePrice, Integer purchaseYear) {
+    public ListItemDTO updateSet(Long itemId, Double purchasePrice, String acquisitionDate, Integer purchaseYear, String acquisitionType) {
         Collection item = collectionRepository.findById(itemId)
             .orElseThrow(() -> new IllegalArgumentException("Ítem no encontrado"));
         
-        if (purchasePrice != null) item.setPurchasePrice(purchasePrice);
-        if (purchaseYear != null) {
+        if (acquisitionType != null && !acquisitionType.isBlank()) {
+            try {
+                item.setAcquisitionType(Collection.AcquisitionType.valueOf(acquisitionType.trim().toUpperCase()));
+            } catch (Exception e) {
+                // Ignore invalid enum strings
+            }
+        }
+        if (purchasePrice != null) {
+            item.setPurchasePrice(purchasePrice);
+        } else if (item.getAcquisitionType() == Collection.AcquisitionType.GIFT && purchasePrice == null) {
+            // For gifts, default to 0.0 if not specified
+            item.setPurchasePrice(0.0);
+        }
+
+        if (acquisitionDate != null && !acquisitionDate.isBlank()) {
+            try {
+                item.setAcquisitionDate(LocalDate.parse(acquisitionDate.trim()));
+            } catch (Exception e) {
+                if (purchaseYear != null) item.setAcquisitionDate(LocalDate.of(purchaseYear, 1, 1));
+            }
+        } else if (purchaseYear != null) {
             item.setAcquisitionDate(LocalDate.of(purchaseYear, 1, 1));
         }
         
         return mapToDTO(collectionRepository.save(item));
+    }
+
+    @Transactional
+    public ListItemDTO updateSet(Long itemId, Double purchasePrice, Integer purchaseYear, String acquisitionType) {
+        String acqDate = purchaseYear != null ? LocalDate.of(purchaseYear, 1, 1).toString() : null;
+        return updateSet(itemId, purchasePrice, acqDate, purchaseYear, acquisitionType);
     }
     
     private void createInitialPriceHistory(LegoSet set) {
@@ -107,7 +132,11 @@ public class CollectionService {
         ListItemDTO dto = new ListItemDTO();
         dto.setId(item.getId());
         dto.setPurchasePrice(item.getPurchasePrice());
+        if (item.getAcquisitionType() != null) {
+            dto.setAcquisitionType(item.getAcquisitionType().name());
+        }
         if (item.getAcquisitionDate() != null) {
+            dto.setAcquisitionDate(item.getAcquisitionDate().toString());
             dto.setPurchaseYear(item.getAcquisitionDate().getYear());
         }
         dto.setLegoSet(mapSetToDTO(item.getLegoSet()));

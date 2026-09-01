@@ -2,15 +2,27 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>BrickCollector Dashboard</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA & Mobile Web App Meta -->
+    <meta name="theme-color" content="#121212">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BrickCollector">
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    
     <!-- CSS -->
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/style.css">
@@ -18,7 +30,6 @@
     
     <!-- Theme Detection Script (Run immediately) -->
     <script src="js/theme.js"></script>
-    
 
     <!-- html2pdf.js for PDFs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -31,10 +42,10 @@
     <div id="app-container">
         <!-- Barra de navegación principal superior -->
         <nav id="main-nav" class="hidden">
-            <div class="nav-brand" style="font-size: 1.5rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 10px;">
+            <div class="nav-brand" style="font-size: 1.35rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 10px;">
                 <i data-lucide="blocks"></i> BrickCollector
             </div>
-            <div class="nav-links" style="display: flex; gap: 20px; height: 100%;">
+            <div class="nav-links">
                 <button class="nav-btn active" data-view="search">
                     <i data-lucide="search"></i>
                     <span>Buscar</span>
@@ -53,7 +64,7 @@
                 </button>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <button class="nav-btn" onclick="toggleTheme()" aria-label="Cambiar tema">
+                <button class="nav-btn theme-toggle-btn" onclick="toggleTheme()" aria-label="Cambiar tema">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </button>
             </div>
@@ -61,6 +72,26 @@
 
         <!-- Vistas de la aplicación se renderizarán aquí -->
         <main id="main-content"></main>
+
+        <!-- Navigation bar inferior para móviles / iPhone -->
+        <nav id="mobile-bottom-nav" class="mobile-bottom-nav hidden">
+            <button class="mobile-nav-btn active" data-view="search">
+                <i data-lucide="search"></i>
+                <span>Buscar</span>
+            </button>
+            <button class="mobile-nav-btn" data-view="collection">
+                <i data-lucide="layers"></i>
+                <span>Colección</span>
+            </button>
+            <button class="mobile-nav-btn" data-view="pieces">
+                <i data-lucide="puzzle"></i>
+                <span>Piezas</span>
+            </button>
+            <button class="mobile-nav-btn" data-view="profile">
+                <i data-lucide="user"></i>
+                <span>Perfil</span>
+            </button>
+        </nav>
     </div>
 
     <!-- Modals Container -->
