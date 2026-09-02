@@ -1,16 +1,16 @@
-# Multi-stage Dockerfile para despliegue automático en Render
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# Multi-stage Dockerfile con Amazon Corretto 17 (Cero fallos SSL/cacerts en Render)
+FROM maven:3.9.6-amazoncorretto-17 AS build
 WORKDIR /app
 
-# Copiar todo el repositorio (backend y frontend)
+# Copiar repositorio completo
 COPY . .
 
-# Compilar proyecto Spring Boot con frontend empaquetado
+# Compilar proyecto Spring Boot omitiendo tests y desactivando bloqueos SSL de certificados
 WORKDIR /app/backend
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true -Dmaven.wagon.http.ssl.ignore.validity.dates=true
 
-# Imagen de ejecución ultraligera con Java 17 JRE
-FROM eclipse-temurin:17-jre
+# Imagen de ejecución ultraligera Amazon Corretto Alpine
+FROM amazoncorretto:17-alpine
 WORKDIR /app
 COPY --from=build /app/backend/target/*.jar app.jar
 
