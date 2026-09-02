@@ -171,7 +171,7 @@ const StatsView = {
 
                 <div class="kpi-card" style="border-top: 4px solid ${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
                     <div class="kpi-title">
-                        <span>PLUSVALÍA ACTUAL</span>
+                        <span>PROFIT ACTUAL</span>
                         <i data-lucide="${isPlusvaliaPos ? 'trending-up' : 'trending-down'}" style="width:16px;height:16px;color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};"></i>
                     </div>
                     <div class="kpi-value" style="color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
@@ -516,7 +516,7 @@ const StatsView = {
                     </div>
                     <div style="text-align:right; font-family:'IBM Plex Mono',monospace;">
                         <div style="font-size:1.05rem; font-weight:700; color:${color};">${(a.investedTotal || 0).toFixed(2)}€ pagados</div>
-                        <div style="font-size:0.75rem; color:${isPos ? '#00D26A' : '#FF2A2A'}; font-weight:600;">Plusvalía: ${isPos ? '+' : ''}${plusvalia.toFixed(2)}€ (${roiText})</div>
+                        <div style="font-size:0.75rem; color:${isPos ? '#00D26A' : '#FF2A2A'}; font-weight:600;">Profit: ${isPos ? '+' : ''}${plusvalia.toFixed(2)}€ (${roiText})</div>
                     </div>
                 </div>
             `;

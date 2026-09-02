@@ -292,11 +292,12 @@ const UI = {
                         <div style="margin-top: 8px;">
                             <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Atajos de Descuento Rápido</div>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 0)">PVP (€${(set.retail_price).toFixed(2)})</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 0)">PVP (${(set.retail_price).toFixed(2)} €)</button>
                                 <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 10)">-10%</button>
-                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 15)">-15%</button>
                                 <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 20)">-20%</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 25)">-25%</button>
                                 <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 30)">-30%</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 50)">-50%</button>
                                 <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 100)">Regalo (0€)</button>
                             </div>
                         </div>
@@ -351,7 +352,7 @@ const UI = {
                     <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: var(--text-primary); margin-top: 2px;">€${(set.market_value || set.retail_price || 0).toFixed(2)}</div>
                 </div>
                 <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px;">
-                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Plusvalía</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Profit</div>
                     <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: ${isProfitPos ? '#10B981' : '#EF4444'}; margin-top: 2px;">
                         ${isProfitPos ? '+' : ''}€${profitVal.toFixed(2)}
                     </div>
