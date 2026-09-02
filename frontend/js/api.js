@@ -1,5 +1,5 @@
 const API = {
-    API_BASE: 'http://localhost:8080/api',
+    API_BASE: window.location.origin.includes('localhost') ? 'http://localhost:8080/api' : '/api',
     
     CATEGORIES: [
         { id: 'technic', name: 'Technic', rebrickableId: 1 },
