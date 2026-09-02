@@ -11,7 +11,8 @@ const App = {
         searchQuery: '',
         sortBy: 'default',
         themeFilter: 'all',
-        yearFilter: 'all'
+        yearFilter: 'all',
+        retiredFilter: 'all'
     },
     myPiecesState: {
         allPieces: null,
@@ -53,10 +54,44 @@ const App = {
         }
 
         await Storage.fetchAll();
+        this.initPullToRefresh();
         App.navigate('search');
     },
 
+    initPullToRefresh() {
+        if (!('ontouchstart' in window)) return;
+        let startY = 0;
+        let pulling = false;
+        const main = document.getElementById('main-content');
+        if (!main) return;
+
+        main.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) {
+                startY = e.touches[0].pageY;
+                pulling = true;
+            }
+        }, { passive: true });
+
+        main.addEventListener('touchmove', (e) => {
+            if (!pulling) return;
+            const currentY = e.touches[0].pageY;
+            const diff = currentY - startY;
+            if (diff > 100 && window.scrollY === 0) {
+                pulling = false;
+                UI.hapticFeedback('medium');
+                UI.showToast("Refrescando datos desde la nube...", "info");
+                Storage.fetchAll().then(() => {
+                    App.navigate(App.currentView);
+                    UI.showToast("Datos actualizados", "success");
+                });
+            }
+        }, { passive: true });
+
+        main.addEventListener('touchend', () => { pulling = false; }, { passive: true });
+    },
+
     navigate(view) {
+        UI.hapticFeedback('light');
         this.currentView = view;
         const main = document.getElementById('main-content');
         const nav = document.getElementById('main-nav');

@@ -1480,3 +1480,71 @@ table img {
     color: var(--text-primary);
     border-color: var(--border-strong);
 }
+
+.discount-pill {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.discount-pill:hover, .discount-pill:active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+/* Filter Chips Scroll Container & Category Chips */
+.filter-chips-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.filter-chips-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.filter-chips-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 4px;
+}
+
+.category-chip {
+    background: var(--bg-surface-muted);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.category-chip:hover {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+}
+
+.category-chip.active {
+    background: var(--accent) !important;
+    color: #FFFFFF !important;
+    border-color: var(--accent) !important;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(227, 0, 11, 0.35);
+}

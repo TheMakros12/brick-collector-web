@@ -19,6 +19,7 @@ const Storage = {
                 retail_price: item.legoSet.retail_price,
                 market_value: item.legoSet.market_value,
                 theme_id: item.legoSet.theme_id,
+                retired: item.legoSet.retired,
                 purchaseDetails: {
                     pricePaid: item.purchasePrice,
                     purchaseYear: item.purchaseYear,

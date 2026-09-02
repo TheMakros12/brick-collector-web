@@ -20,11 +20,16 @@ const CollectionView = {
             filteredItems.sort((a, b) => (b.year || 0) - (a.year || 0));
         }
 
-        // Calculate unique themes for the dropdown
+        // Calculate unique themes for chips
         const uniqueThemes = [...new Set(items.map(i => i.theme_id).filter(id => id))];
-        const themeOptions = uniqueThemes.map(id =>
-            `<option value="${id}" ${App.collectionState.themeFilter == id ? 'selected' : ''}>${API.getThemeName(id)}</option>`
-        ).join('');
+
+        const themeChipsHtml = [
+            `<button class="category-chip ${App.collectionState.themeFilter === 'all' ? 'active' : ''}" data-cat="all" onclick="CollectionView.updateCollectionThemeFilter('all')">Todas las categorías</button>`,
+            ...uniqueThemes.map(id => {
+                const isActive = App.collectionState.themeFilter == id;
+                return `<button class="category-chip ${isActive ? 'active' : ''}" data-cat="${id}" onclick="CollectionView.updateCollectionThemeFilter('${id}')">${API.getThemeName(id)}</button>`;
+            })
+        ].join('');
 
         // Calculate unique purchase years
         const uniqueYears = [...new Set(items.map(i => i.purchaseDetails && i.purchaseDetails.purchaseYear).filter(y => y))].sort((a, b) => b - a);
@@ -79,10 +84,6 @@ const CollectionView = {
                             <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted); pointer-events: none;"></i>
                             <input type="text" id="local-search" class="input-field" style="padding-left: 42px;" placeholder="Buscar por número o nombre de set..." value="${App.collectionState.searchQuery}" onkeyup="CollectionView.updateCollectionSearch(this.value)">
                         </div>
-                        <select id="local-theme" class="input-field" style="min-width: 160px; max-width: 220px;" onchange="CollectionView.updateCollectionThemeFilter(this.value)">
-                            <option value="all">Todas las categorías</option>
-                            ${themeOptions}
-                        </select>
                         <select id="local-year" class="input-field" style="min-width: 150px; max-width: 200px;" onchange="CollectionView.updateCollectionYearFilter(this.value)">
                             <option value="all">Cualquier año</option>
                             ${yearOptions}
@@ -93,6 +94,17 @@ const CollectionView = {
                             <option value="price" ${App.collectionState.sortBy === 'price' ? 'selected' : ''}>+ Precio</option>
                             <option value="year" ${App.collectionState.sortBy === 'year' ? 'selected' : ''}>Recientes</option>
                         </select>
+                    </div>
+
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div class="filter-chips-scroll flex-1">
+                            ${themeChipsHtml}
+                        </div>
+                        <div class="filter-chips-scroll">
+                            <button class="category-chip ${App.collectionState.retiredFilter === 'all' ? 'active' : ''}" data-ret="all" onclick="CollectionView.updateCollectionRetiredFilter('all')">Todos</button>
+                            <button class="category-chip ${App.collectionState.retiredFilter === 'retired' ? 'active' : ''}" data-ret="retired" onclick="CollectionView.updateCollectionRetiredFilter('retired')">🔒 Descatalogados (EOL)</button>
+                            <button class="category-chip ${App.collectionState.retiredFilter === 'active' ? 'active' : ''}" data-ret="active" onclick="CollectionView.updateCollectionRetiredFilter('active')">🛒 En Catálogo</button>
+                        </div>
                     </div>
                 </div>
 
@@ -124,6 +136,12 @@ const CollectionView = {
 
         if (App.collectionState.themeFilter !== 'all') {
             filteredItems = filteredItems.filter(i => i.theme_id == App.collectionState.themeFilter);
+        }
+
+        if (App.collectionState.retiredFilter === 'retired') {
+            filteredItems = filteredItems.filter(i => i.retired === true);
+        } else if (App.collectionState.retiredFilter === 'active') {
+            filteredItems = filteredItems.filter(i => i.retired === false);
         }
 
         if (App.collectionState.yearFilter && App.collectionState.yearFilter !== 'all') {
@@ -160,7 +178,21 @@ const CollectionView = {
         this.updateCollectionListOnly();
     },
     updateCollectionThemeFilter(val) {
+        UI.hapticFeedback('light');
         App.collectionState.themeFilter = val;
+        document.querySelectorAll('.filter-chips-scroll .category-chip').forEach(btn => {
+            const catId = btn.getAttribute('data-cat');
+            btn.classList.toggle('active', catId == val);
+        });
+        this.updateCollectionListOnly();
+    },
+    updateCollectionRetiredFilter(val) {
+        UI.hapticFeedback('light');
+        App.collectionState.retiredFilter = val;
+        document.querySelectorAll('.filter-chips-scroll [data-ret]').forEach(btn => {
+            const retId = btn.getAttribute('data-ret');
+            btn.classList.toggle('active', retId === val);
+        });
         this.updateCollectionListOnly();
     },
     updateCollectionYearFilter(val) {

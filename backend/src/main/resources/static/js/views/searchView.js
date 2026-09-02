@@ -1,25 +1,7 @@
 const SearchView = {
+    _debouncedPerformSearch: null,
+
     async render(container) {
-        const categoriesOptions = [
-            '<option value="">Todas las categorías</option>',
-            ...API.CATEGORIES.map(c => `<option value="${c.id}" ${App.searchState.category === c.id ? 'selected' : ''}>${c.name}</option>`)
-        ].join('');
-
-        const popularChips = [
-            { id: '', label: '🔥 Destacados' },
-            { id: 'star-wars', label: '🏎️ Star Wars' },
-            { id: 'technic', label: '⚙️ Technic' },
-            { id: 'icons', label: '👑 Icons / Creator' },
-            { id: 'speed-champions', label: '🏎️ Speed Champions' },
-            { id: 'harry-potter', label: '🧙‍♂️ Harry Potter' },
-            { id: 'city', label: '🏙️ City' }
-        ];
-
-        const chipsHtml = popularChips.map(chip => {
-            const isActive = (App.searchState.category === chip.id);
-            return `<button class="category-chip ${isActive ? 'active' : ''}" data-cat="${chip.id}" onclick="SearchView.quickSearchCategory('${chip.id}')">${chip.label}</button>`;
-        }).join('');
-
         container.innerHTML = `
             <div class="view-container">
                 <!-- Header Title Bar -->
@@ -30,111 +12,121 @@ const SearchView = {
                         </div>
                         <div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700;">Catálogo LEGO®</h2>
-                                <span class="page-header-badge" style="color:#0072FF; background:rgba(0,114,255,0.1); border-color:rgba(0,114,255,0.2);">🔍 Búsqueda Global</span>
+                                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700;">Buscar Set LEGO®</h2>
+                                <span class="page-header-badge" style="color:#0072FF; background:rgba(0,114,255,0.1); border-color:rgba(0,114,255,0.2);">⚡ Tiempo Real</span>
                             </div>
                             <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 2px;">
-                                Explora la base de datos oficial de Rebrickable por número de set (ej. 10330), nombre o temática
+                                Escribe el número o ID de set para ver la lista de coincidencias en tiempo real
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Integrated Search Toolbar -->
-                <div class="toolbar-container">
-                    <div class="toolbar-row">
-                        <div class="input-group flex-1" style="margin-bottom: 0; min-width: 260px; position: relative;">
-                            <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted); pointer-events: none;"></i>
-                            <input type="text" id="search-input" class="input-field" style="padding-left: 42px;" placeholder="Ingresa ID de set o palabras clave..." value="${App.searchState.query}">
-                        </div>
-                        <select id="search-category" class="input-field" style="min-width: 180px; max-width: 240px;">
-                            ${categoriesOptions}
-                        </select>
-                        <button class="btn" style="border-radius: 12px; padding: 0 24px;" onclick="SearchView.performSearch()">
-                            <i data-lucide="search"></i> Buscar
-                        </button>
-                    </div>
-
-                    <!-- Category Chips -->
-                    <div style="margin-top: 6px;">
-                        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Categorías Populares</div>
-                        <div class="filter-chips-scroll">
-                            ${chipsHtml}
-                        </div>
+                <!-- Main Direct Search Bar -->
+                <div class="toolbar-container" style="padding: 16px;">
+                    <div class="input-group" style="margin-bottom: 0; position: relative;">
+                        <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; color: var(--text-muted); pointer-events: none;"></i>
+                        <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID de set (ej. 77252, 10307...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)">
+                        ${App.searchState.query ? `<button style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
                     </div>
                 </div>
 
+                <!-- Real-Time Live Results -->
                 <div id="search-results" class="mt-4">
-                    ${App.searchState.results.length > 0 ?
-                App.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('') +
-                ((App.searchState.results.length >= 30 && !/^\d+(-1)?$/.test(App.searchState.query)) ? '<button class="btn btn-outline w-full mt-4" onclick="SearchView.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>' : '')
-                : `<div class="text-center text-muted p-4"><i data-lucide="compass" style="width:48px;height:48px;margin-bottom:10px;opacity:0.4;"></i><br>Selecciona una categoría o introduce palabras clave para buscar.</div>`}
+                    ${this.renderResultsHtml()}
                 </div>
             </div>
         `;
 
         lucide.createIcons();
-
-        document.getElementById('search-category').addEventListener('change', (e) => {
-            App.searchState.category = e.target.value;
-            this.performSearch();
-        });
-
-        document.getElementById('search-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.performSearch();
-        });
     },
 
-    quickSearchCategory(catId) {
-        App.searchState.category = catId;
-        const select = document.getElementById('search-category');
-        if (select) select.value = catId;
+    renderResultsHtml() {
+        const query = (App.searchState.query || '').trim();
+        const results = App.searchState.results || [];
 
-        document.querySelectorAll('.category-chip').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.cat === catId);
-        });
+        if (!query) {
+            return `
+                <div class="text-center text-muted p-5" style="background: var(--bg-surface); border-radius: 16px; border: 1px dashed var(--border); margin-top: 20px;">
+                    <i data-lucide="search-code" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; color: var(--accent);"></i>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Búsqueda por Coincidencias de ID</h3>
+                    <p style="font-size: 0.88rem; max-width: 320px; margin: 0 auto; color: var(--text-secondary);">
+                        Conforme escribes números en la casilla, aparecerá la lista con todas las opciones coincidentes.
+                    </p>
+                </div>
+            `;
+        }
 
-        this.performSearch();
+        if (results.length === 0) {
+            return `
+                <div class="text-center text-muted p-5" style="background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--border);">
+                    <i data-lucide="search-x" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4;"></i>
+                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">No se encontraron coincidencias</h3>
+                    <p style="font-size: 0.85rem; margin-top: 4px;">Revisa el número introducido "${query}" e inténtalo de nuevo.</p>
+                </div>
+            `;
+        }
+
+        let html = results.map(s => UI.createLegoCard(s, 'search')).join('');
+        if (results.length >= 30) {
+            html += '<button class="btn btn-outline w-full mt-4" onclick="SearchView.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>';
+        }
+        return html;
+    },
+
+    onInputChange(val) {
+        App.searchState.query = val;
+        if (!this._debouncedPerformSearch) {
+            this._debouncedPerformSearch = UI.debounce(() => this.performSearch(), 300);
+        }
+        this._debouncedPerformSearch();
+    },
+
+    clearSearch() {
+        const input = document.getElementById('search-input');
+        if (input) input.value = '';
+        App.searchState.query = '';
+        App.searchState.results = [];
+        const resultsContainer = document.getElementById('search-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = this.renderResultsHtml();
+            lucide.createIcons();
+        }
     },
 
     async performSearch() {
-        const queryInput = document.getElementById('search-input');
-        const categorySelect = document.getElementById('search-category');
-
-        const query = queryInput ? queryInput.value : App.searchState.query;
-        const category = categorySelect ? categorySelect.value : App.searchState.category;
-
-        App.searchState.query = query;
-        App.searchState.category = category;
-        App.searchState.page = 1;
-
-        document.querySelectorAll('.category-chip').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.cat === category);
-        });
-
+        const query = (App.searchState.query || '').trim();
         const resultsContainer = document.getElementById('search-results');
-        resultsContainer.innerHTML = '<div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Buscando sets...</div>';
+        if (!resultsContainer) return;
+
+        if (!query) {
+            App.searchState.results = [];
+            resultsContainer.innerHTML = this.renderResultsHtml();
+            lucide.createIcons();
+            return;
+        }
+
+        resultsContainer.innerHTML = '<div class="text-center p-5"><i data-lucide="loader" class="spin" style="width: 28px; height: 28px;"></i><div style="font-size: 0.9rem; margin-top: 8px; color: var(--text-muted);">Buscando coincidencias...</div></div>';
         lucide.createIcons();
 
         let results = [];
-        if (/^\d+(-1)?$/.test(query)) {
-            const set = await API.getSetDetails(query);
-            results = set ? [set] : [];
-        } else {
-            results = await API.searchSets(query, category);
+        try {
+            // Realizar búsqueda general de catálogo para obtener la lista de coincidencias
+            results = await API.searchSets(query);
+
+            // Si es un número de set específico, intentar obtener además la ficha exacta y priorizarla al inicio
+            if (/^\d+(-1)?$/.test(query)) {
+                const exactSet = await API.getSetDetails(query);
+                if (exactSet) {
+                    results = [exactSet, ...results.filter(s => s.set_num !== exactSet.set_num)];
+                }
+            }
+        } catch (e) {
+            console.error(e);
         }
 
         App.searchState.results = results;
-
-        if (results.length === 0) {
-            resultsContainer.innerHTML = '<div class="text-center text-muted p-4"><i data-lucide="search-x" style="width:48px;height:48px;margin-bottom:10px;opacity:0.4;"></i><br>No se encontraron resultados para los filtros seleccionados.</div>';
-        } else {
-            let html = results.map(s => UI.createLegoCard(s, 'search')).join('');
-            if (!/^\d+(-1)?$/.test(query) && results.length >= 30) {
-                html += '<button class="btn btn-outline w-full mt-4" onclick="SearchView.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>';
-            }
-            resultsContainer.innerHTML = html;
-        }
+        resultsContainer.innerHTML = this.renderResultsHtml();
         lucide.createIcons();
     },
 
@@ -145,17 +137,13 @@ const SearchView = {
             lucide.createIcons();
         }
 
-        App.searchState.page++;
-        const newResults = await API.searchSets(App.searchState.query, App.searchState.category, App.searchState.page);
+        App.searchState.page = (App.searchState.page || 1) + 1;
+        const newResults = await API.searchSets(App.searchState.query, null, App.searchState.page);
 
         if (newResults && newResults.length > 0) {
             App.searchState.results = [...App.searchState.results, ...newResults];
             const resultsContainer = document.getElementById('search-results');
-            let html = App.searchState.results.map(s => UI.createLegoCard(s, 'search')).join('');
-            if (newResults.length >= 30) {
-                html += '<button class="btn btn-outline w-full mt-4" onclick="SearchView.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>';
-            }
-            resultsContainer.innerHTML = html;
+            resultsContainer.innerHTML = this.renderResultsHtml();
             lucide.createIcons();
         } else {
             if (btn) btn.remove();

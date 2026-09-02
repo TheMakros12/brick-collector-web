@@ -265,85 +265,117 @@ const UI = {
 
         if (isInCollection) {
             purchaseHtml = `
-                <div class="modal-section" style="margin: 0; display: flex; flex-direction: column; gap: 12px; height: 100%;">
-                    <div class="modal-section-title" style="margin-bottom: 5px;"><i data-lucide="credit-card"></i> Mi Compra</div>
-                    <div class="input-group">
-                        <label>Método de Adquisición</label>
-                        <select id="purchase-type" class="input-field" onchange="App.handlePurchaseTypeChange(this, ${set.retail_price || 0})">
-                            <option value="self" ${acqType === 'self' || acqType === 'PURCHASED' ? 'selected' : ''}>🛍️ Comprado por mí</option>
-                            <option value="gift" ${acqType === 'gift' || acqType === 'GIFT' ? 'selected' : ''}>🎁 Fue un regalo</option>
-                            <option value="partial" ${acqType === 'partial' || acqType === 'PARTIAL' ? 'selected' : ''}>🤝 Pago compartido / Segunda mano</option>
-                        </select>
+                <div class="modal-section mb-4">
+                    <div class="modal-section-title" style="margin-bottom: 12px;"><i data-lucide="credit-card"></i> Datos de Mi Compra</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                        <div class="input-group" style="margin-bottom: 0;">
+                            <label>Método de Adquisición</label>
+                            <select id="purchase-type" class="input-field" onchange="App.handlePurchaseTypeChange(this, ${set.retail_price || 0})">
+                                <option value="self" ${acqType === 'self' || acqType === 'PURCHASED' ? 'selected' : ''}>🛍️ Comprado por mí</option>
+                                <option value="gift" ${acqType === 'gift' || acqType === 'GIFT' ? 'selected' : ''}>🎁 Fue un regalo</option>
+                                <option value="partial" ${acqType === 'partial' || acqType === 'PARTIAL' ? 'selected' : ''}>🤝 Pago compartido / Segunda mano</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin-bottom: 0;">
+                            <label>Fecha de Compra (Día / Mes / Año)</label>
+                            <input type="date" id="purchase-date" class="input-field" value="${pDate}">
+                        </div>
                     </div>
-                    <div class="input-group" id="purchase-price-group">
-                        <label>Precio Pagado por Mí (€)</label>
+
+                    <div class="input-group" id="purchase-price-group" style="margin-top: 14px; margin-bottom: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="margin: 0;">Precio Pagado por Mí (€)</label>
+                            ${(set.retail_price && set.retail_price > 0) ? `<span style="font-size: 0.75rem; color: var(--text-muted);">PVP Oficial: €${(set.retail_price).toFixed(2)}</span>` : ''}
+                        </div>
                         <input type="number" id="purchase-price" class="input-field" step="0.01" value="${pPrice}">
+                        ${(set.retail_price && set.retail_price > 0) ? `
+                        <div style="margin-top: 8px;">
+                            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Atajos de Descuento Rápido</div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 0)">PVP (€${(set.retail_price).toFixed(2)})</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 10)">-10%</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 15)">-15%</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 20)">-20%</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 30)">-30%</button>
+                                <button type="button" class="discount-pill" onclick="UI.applyDiscountPreset(${set.retail_price}, 100)">Regalo (0€)</button>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
-                    <div class="input-group">
-                        <label>Precio Oficial del Set / MSRP (€)</label>
-                        <input type="number" id="purchase-retail" class="input-field" step="0.01" value="${set.retail_price || ''}" readonly style="opacity:0.7">
-                    </div>
-                    <div class="input-group">
-                        <label>Fecha de Compra (Día / Mes / Año)</label>
-                        <input type="date" id="purchase-date" class="input-field" value="${pDate}">
-                    </div>
-                    <div style="margin-top: auto; padding-top: 10px;">
-                        <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Detalles</button>
+
+                    <div style="margin-top: 14px;">
+                        <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Cambios de Compra</button>
                     </div>
                 </div>
             `;
 
             actionsHtml = `
-                <button class="btn w-full mb-3" onclick="App.viewPieces('${set.set_num}')">
+                <button class="btn flex-1" style="justify-content: center;" onclick="App.viewPieces('${set.set_num}')">
                     <i data-lucide="puzzle"></i> Ver Piezas del Set
                 </button>
             `;
         }
 
+        const profitVal = (set.market_value || set.retail_price || 0) - pPrice;
+        const isProfitPos = profitVal >= 0;
+
         const content = `
-            <!-- HEADER -->
-            <div class="text-center mb-4" style="background: var(--bg-surface-muted); border-radius: var(--radius-md); padding: 20px;">
-                <img src="${imageUrl}" alt="${set.name}" onload="UI.removeWhiteBackground(this)" style="max-width: 100%; max-height: 250px; object-fit: contain;">
-            </div>
-            
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="font-size: 1.5rem; margin-bottom: 5px;">${set.name}</h2>
-                <div class="tech-text text-secondary" style="font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    <span style="background: var(--accent-bg); color: var(--accent-text); padding: 2px 8px; border-radius: 4px; font-weight: bold;">${set.set_num.split('-')[0]}</span>
-                    <span>Año: ${set.year || 'N/A'}</span>
+            <!-- 1. HERO HEADER BANNER -->
+            <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; position: relative;">
+                <div style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
+                    <span style="background: var(--accent); color: #FFF; font-weight: 700; font-size: 0.78rem; padding: 3px 10px; border-radius: 20px;">#${set.set_num.split('-')[0]}</span>
+                    ${set.retired ? `<span style="background: #EF4444; color: #FFF; font-weight: 700; font-size: 0.78rem; padding: 3px 10px; border-radius: 20px;">🔒 Descatalogado (EOL)</span>` : `<span style="background: #10B981; color: #FFF; font-weight: 700; font-size: 0.78rem; padding: 3px 10px; border-radius: 20px;">🛒 En Catálogo</span>`}
                 </div>
-            </div>
-            
-            <!-- GRID LAYOUT -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+
+                <img src="${imageUrl}" alt="${set.name}" onload="UI.removeWhiteBackground(this)" style="max-width: 100%; max-height: 220px; object-fit: contain; margin-top: 15px; margin-bottom: 15px;">
                 
-                <!-- LEFT COLUMN -->
-                <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <div class="modal-section" style="margin: 0;">
-                        <div class="modal-section-title"><i data-lucide="info"></i> Datos del Mercado</div>
-                        <div class="stat-grid" style="margin-bottom: 0;">
-                            <div class="stat-card" style="padding: 15px;">
-                                <div class="stat-value" style="font-size: 1.5rem;">${set.num_parts || 0}</div>
-                                <div class="stat-label">Piezas</div>
-                            </div>
-                            <div class="stat-card" style="padding: 15px;">
-                                <div class="stat-value" style="font-size: 1.5rem;">€${set.retail_price || 0}</div>
-                                <div class="stat-label">Precio Estimado</div>
-                            </div>
-                        </div>
+                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 6px;">${set.name}</h2>
+                <div style="font-size: 0.88rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                    <span><i data-lucide="layers" style="width:14px;height:14px;display:inline;"></i> ${API.getThemeName(set.theme_id)}</span>
+                    <span>•</span>
+                    <span><i data-lucide="calendar" style="width:14px;height:14px;display:inline;"></i> ${set.year || 'N/A'}</span>
+                    <span>•</span>
+                    <span><i data-lucide="puzzle" style="width:14px;height:14px;display:inline;"></i> ${set.num_parts || 0} piezas</span>
+                </div>
+            </div>
+
+            <!-- 2. FINANCIAL BENTO HIGHLIGHTS (If in collection) -->
+            ${isInCollection ? `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;">
+                <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Pagado por Mí</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: var(--text-primary); margin-top: 2px;">€${parseFloat(pPrice).toFixed(2)}</div>
+                </div>
+                <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Valor Actual</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: var(--text-primary); margin-top: 2px;">€${(set.market_value || set.retail_price || 0).toFixed(2)}</div>
+                </div>
+                <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Plusvalía</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: ${isProfitPos ? '#10B981' : '#EF4444'}; margin-top: 2px;">
+                        ${isProfitPos ? '+' : ''}€${profitVal.toFixed(2)}
                     </div>
-
-                    ${actionsHtml}
-                    
-                    <a href="${set.set_url}" target="_blank" class="btn btn-outline w-full" style="text-decoration: none;">
-                        <i data-lucide="external-link"></i> Ver en Rebrickable
-                    </a>
                 </div>
+            </div>
+            ` : ''}
 
-                <!-- RIGHT COLUMN -->
-                <div style="display: flex; flex-direction: column; gap: 15px;">
-                    ${purchaseHtml}
+            <!-- 3. COMPRA & FORMULARIO -->
+            ${purchaseHtml}
+
+            <!-- 4. FULL-WIDTH PRICE HISTORY CHART CARD -->
+            <div class="modal-section mb-4" style="margin-bottom: 16px;">
+                <div class="modal-section-title"><i data-lucide="trending-up"></i> Histórico de Valor de Mercado</div>
+                <div id="set-history-chart-container" style="width: 100%;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted);"><i data-lucide="loader" class="spin"></i> Cargando historial...</span>
                 </div>
+            </div>
+
+            <!-- 5. ACTION BUTTONS FOOTER -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                ${actionsHtml}
+                <a href="${set.set_url}" target="_blank" class="btn btn-outline flex-1" style="text-decoration: none; justify-content: center;">
+                    <i data-lucide="external-link"></i> Ver en Rebrickable
+                </a>
             </div>
         `;
         
@@ -351,6 +383,7 @@ const UI = {
         if (document.getElementById('purchase-date')) {
             UI.initCustomDatePicker('purchase-date');
         }
+        UI.loadIndividualSetHistoryChart(set.set_num);
         lucide.createIcons();
         // Add basic switch styles if not in css
         if(!document.getElementById('switch-style')) {
@@ -609,6 +642,169 @@ const UI = {
                 popover.classList.remove('open');
             }
         });
+    },
+
+    hapticFeedback(style = 'light') {
+        if ('vibrate' in navigator && (window.innerWidth <= 768 || 'ontouchstart' in window)) {
+            try {
+                if (style === 'light') navigator.vibrate(10);
+                else if (style === 'medium') navigator.vibrate(20);
+                else if (style === 'success') navigator.vibrate([10, 30, 15]);
+            } catch (e) {}
+        }
+    },
+
+    applyDiscountPreset(retailPrice, discountPercent) {
+        UI.hapticFeedback('light');
+        const priceInput = document.getElementById('purchase-price');
+        const typeSelect = document.getElementById('purchase-type');
+        
+        if (!retailPrice || isNaN(retailPrice)) return;
+
+        if (discountPercent === 100) {
+            if (priceInput) priceInput.value = '0.00';
+            if (typeSelect) {
+                typeSelect.value = 'gift';
+                App.handlePurchaseTypeChange(typeSelect, retailPrice);
+            }
+            return;
+        }
+
+        const discounted = retailPrice * (1 - (discountPercent / 100));
+        if (priceInput) {
+            priceInput.value = discounted.toFixed(2);
+        }
+        if (typeSelect && (typeSelect.value === 'gift' || typeSelect.value === 'GIFT')) {
+            typeSelect.value = 'self';
+            App.handlePurchaseTypeChange(typeSelect, retailPrice);
+        }
+    },
+
+    async loadIndividualSetHistoryChart(setId) {
+        const container = document.getElementById('set-history-chart-container');
+        if (!container) return;
+
+        try {
+            const data = await API.fetchBackend(`/statistics/set/${setId}/history`);
+            if (!data || !data.history || data.history.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 16px;">
+                        <i data-lucide="line-chart" style="width: 28px; height: 28px; opacity: 0.35; margin-bottom: 6px;"></i>
+                        <div>Sin histórico acumulado registrado aún</div>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const dates = data.history.map(p => {
+                if (p.checkedAt && p.checkedAt.length >= 10) return p.checkedAt.substring(0, 10);
+                return p.checkedAt || '';
+            });
+            const prices = data.history.map(p => p.price);
+
+            const isGrowth = (data.growthPct || 0) >= 0;
+            const primaryColor = isGrowth ? '#10B981' : '#FF3B30';
+            const bgBadgeClass = isGrowth ? 'badge-success' : 'badge-danger';
+
+            container.style.border = 'none';
+            container.style.padding = '0';
+            container.style.background = 'transparent';
+
+            container.innerHTML = `
+                <div style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Top Stat Badges Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;">
+                            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Máx. Histórico</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: var(--text-primary); margin-top: 2px;">€${(data.allTimeHigh || 0).toFixed(2)}</div>
+                        </div>
+                        <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Variación</div>
+                            <div>
+                                <span class="badge ${bgBadgeClass}" style="font-weight: 700; font-size: 0.82rem; padding: 3px 8px;">
+                                    ${isGrowth ? '▲ +' : '▼ '} ${(data.growthPct || 0).toFixed(1)}% (€${(data.growthAmount || 0).toFixed(2)})
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Area Gradient Line Chart -->
+                    <div style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: 14px; padding: 12px 10px 6px 10px; position: relative;">
+                        <div id="set-history-apex-chart"></div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+
+            if (window.ApexCharts) {
+                const options = {
+                    chart: {
+                        type: 'area',
+                        height: 140,
+                        toolbar: { show: false },
+                        sparkline: { enabled: false },
+                        zoom: { enabled: false },
+                        animations: { enabled: true, easing: 'easeinout', speed: 500 }
+                    },
+                    colors: [primaryColor],
+                    fill: {
+                        type: 'gradient',
+                        gradient: {
+                            shadeIntensity: 1,
+                            opacityFrom: 0.45,
+                            opacityTo: 0.05,
+                            stops: [0, 90, 100]
+                        }
+                    },
+                    stroke: { curve: 'smooth', width: 3 },
+                    dataLabels: { enabled: false },
+                    grid: {
+                        show: true,
+                        borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#2E333D' : '#E2DDD3',
+                        strokeDashArray: 3,
+                        xaxis: { lines: { show: false } },
+                        yaxis: { lines: { show: true } },
+                        padding: { left: 5, right: 5, top: 5, bottom: 0 }
+                    },
+                    xaxis: {
+                        categories: dates,
+                        labels: {
+                            show: true,
+                            style: {
+                                colors: document.documentElement.getAttribute('data-theme') === 'dark' ? '#A0A5B1' : '#7D7970',
+                                fontSize: '10px',
+                                fontFamily: 'Inter, sans-serif'
+                            }
+                        },
+                        axisBorder: { show: false },
+                        axisTicks: { show: false }
+                    },
+                    yaxis: {
+                        labels: {
+                            show: true,
+                            formatter: (val) => `€${val.toFixed(0)}`,
+                            style: {
+                                colors: document.documentElement.getAttribute('data-theme') === 'dark' ? '#A0A5B1' : '#7D7970',
+                                fontSize: '10px',
+                                fontFamily: 'Inter, sans-serif'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
+                        x: { show: true },
+                        y: { formatter: (val) => `€${val.toFixed(2)}` }
+                    },
+                    series: [{ name: 'Valor de Mercado', data: prices }]
+                };
+                const chart = new ApexCharts(document.getElementById('set-history-apex-chart'), options);
+                chart.render();
+            }
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 12px;">Histórico no disponible</div>`;
+        }
     },
 
     debounce(func, wait = 250) {
