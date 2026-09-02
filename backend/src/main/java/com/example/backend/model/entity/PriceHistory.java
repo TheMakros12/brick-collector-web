@@ -6,7 +6,10 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "price_history")
+@Table(name = "price_history", indexes = {
+    @Index(name = "idx_ph_set_id", columnList = "set_id"),
+    @Index(name = "idx_ph_checked_at", columnList = "checked_at")
+})
 @Data
 @NoArgsConstructor
 public class PriceHistory {

@@ -9,7 +9,10 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.Disabled;
+
 @SpringBootTest
+@Disabled("Script de prueba obsoleto de backup y drop de base de datos")
 public class DbBackupAndDropTest {
 
     @Autowired

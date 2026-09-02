@@ -7,7 +7,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "lego_set")
+@Table(name = "lego_set", indexes = {
+    @Index(name = "idx_ls_theme_id", columnList = "theme_id")
+})
 @Data
 @NoArgsConstructor
 public class LegoSet {

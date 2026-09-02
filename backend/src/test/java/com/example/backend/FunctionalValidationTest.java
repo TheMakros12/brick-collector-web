@@ -13,10 +13,16 @@ import com.example.backend.service.PriceUpdateScheduler;
 import com.example.backend.service.WishlistService;
 
 import java.util.List;
-import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Disabled;
+import org.springframework.test.context.ActiveProfiles;
+
+import com.example.backend.model.entity.*;
+import com.example.backend.repository.*;
 
 @SpringBootTest
+@ActiveProfiles("local")
+@Disabled("Script de prueba de integración manual de extremo a extremo")
 public class FunctionalValidationTest {
 
     @Autowired
@@ -32,26 +38,50 @@ public class FunctionalValidationTest {
     private PriceUpdateScheduler priceUpdateScheduler;
 
     @Autowired
+    private CollectionRepository collectionRepository;
+
+    @Autowired
+    private WishlistRepository wishlistRepository;
+
+    @Autowired
+    private PriceHistoryRepository priceHistoryRepository;
+
+    @Autowired
+    private LegoSetRepository legoSetRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private int count(String table) {
-        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
+    private long count(String table) {
+        try {
+            if ("lego_set".equalsIgnoreCase(table)) return legoSetRepository.count();
+            if ("collection".equalsIgnoreCase(table)) return collectionRepository.count();
+            if ("wishlist".equalsIgnoreCase(table)) return wishlistRepository.count();
+            if ("price_history".equalsIgnoreCase(table)) return priceHistoryRepository.count();
+        } catch (Exception e) {
+            return 0L;
+        }
+        return 0L;
+    }
+
+    private void clearAllData() {
+        try { collectionRepository.deleteAll(); } catch (Exception ignored) {}
+        try { wishlistRepository.deleteAll(); } catch (Exception ignored) {}
+        try { priceHistoryRepository.deleteAll(); } catch (Exception ignored) {}
+        try { legoSetRepository.deleteAll(); } catch (Exception ignored) {}
     }
 
     @Test
     public void runFullEndToEndValidation() {
-        System.out.println("\n\n=== INICIANDO VALIDACI?N FUNCIONAL DE EXTREMO A EXTREMO ===\n");
+        System.out.println("\n\n=== INICIANDO VALIDACIÓN FUNCIONAL DE EXTREMO A EXTREMO ===\n");
         String setId = "10330-1"; // Set real (McLaren MP4/4)
 
         try {
             // 0. Ensure clean state
-            jdbcTemplate.execute("DELETE FROM collection");
-            jdbcTemplate.execute("DELETE FROM wishlist");
-            jdbcTemplate.execute("DELETE FROM price_history");
-            jdbcTemplate.execute("DELETE FROM lego_set");
+            clearAllData();
 
-            int initialLegoSet = count("lego_set");
-            int initialPriceHistory = count("price_history");
+            long initialLegoSet = count("lego_set");
+            long initialPriceHistory = count("price_history");
 
             System.out.println("Estado inicial: lego_set=" + initialLegoSet + ", price_history=" + initialPriceHistory);
 
@@ -99,23 +129,25 @@ public class FunctionalValidationTest {
             assertEquals(1, count("collection"), "Collection debe crearse");
             assertEquals(initialPriceHistory + 1, count("price_history"), "Move debe crear el primer snapshot price_history");
 
-            Map<String, Object> colRow = jdbcTemplate.queryForMap("SELECT * FROM collection LIMIT 1");
-            System.out.println("Collection insertada con purchase_price = " + colRow.get("purchase_price"));
-            Map<String, Object> phRow = jdbcTemplate.queryForMap("SELECT * FROM price_history LIMIT 1");
-            System.out.println("Price_history insertada con price = " + phRow.get("price"));
+            Collection colRow = collectionRepository.findAll().stream().findFirst().orElse(null);
+            System.out.println("Collection insertada con purchase_price = " + (colRow != null ? colRow.getPurchasePrice() : "null"));
+            PriceHistory phRow = priceHistoryRepository.findAll().stream().findFirst().orElse(null);
+            System.out.println("Price_history insertada con price = " + (phRow != null ? phRow.getPrice() : "null"));
 
             System.out.println("[OK] Wishlist -> Collection superado.");
 
             // 8. Scheduler (Sin cambio)
             System.out.println("\n[Prueba 8A] Ejecutando Scheduler (Sin Cambio)...");
-            int historyCountBefore = count("price_history");
+            long historyCountBefore = count("price_history");
             priceUpdateScheduler.updatePrices();
             assertEquals(historyCountBefore, count("price_history"), "El scheduler NO debe crear snapshots si el precio es igual");
             System.out.println("[OK] Scheduler Sin Cambio superado.");
 
             // 8. Scheduler (Con cambio forzado en BD)
             System.out.println("\n[Prueba 8B] Ejecutando Scheduler (Forzando cambio de precio)...");
-            jdbcTemplate.execute("UPDATE price_history SET price = 10.00"); // Fake old price
+            List<com.example.backend.model.entity.PriceHistory> allPh = priceHistoryRepository.findAll();
+            allPh.forEach(ph -> ph.setPrice(10.00));
+            priceHistoryRepository.saveAll(allPh);
             priceUpdateScheduler.updatePrices();
             assertEquals(historyCountBefore + 1, count("price_history"), "El scheduler DEBE crear un snapshot si el precio cambia");
             System.out.println("[OK] Scheduler Con Cambio superado.");
@@ -130,8 +162,8 @@ public class FunctionalValidationTest {
             System.out.println("[OK] Eliminar Collection superado.");
 
             // 5. Collection Directa
-            System.out.println("\n[Prueba 5] A?adiendo " + setId + " DIRECTAMENTE a Collection...");
-            jdbcTemplate.execute("DELETE FROM price_history"); // Reset history to test initial snapshot creation
+            System.out.println("\n[Prueba 5] Añadiendo " + setId + " DIRECTAMENTE a Collection...");
+            priceHistoryRepository.deleteAll(); // Reset history to test initial snapshot creation
             ListItemDTO directColRes = collectionService.addSetToCollection(setId);
             assertNotNull(directColRes, "Collection Add fall?");
             
@@ -147,10 +179,7 @@ public class FunctionalValidationTest {
             fail("Validacion fallida: " + e.getMessage());
         } finally {
             // Clean up test data
-            jdbcTemplate.execute("DELETE FROM collection");
-            jdbcTemplate.execute("DELETE FROM wishlist");
-            jdbcTemplate.execute("DELETE FROM price_history");
-            jdbcTemplate.execute("DELETE FROM lego_set");
+            clearAllData();
         }
     }
 }

@@ -10,7 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.test.context.ActiveProfiles;
+
 @SpringBootTest
+@ActiveProfiles("local")
 public class DbAuditTest {
 
     @Autowired
@@ -64,11 +67,15 @@ public class DbAuditTest {
 
         // 7. Índices
         sb.append("\n\n3. Índices:\n");
-        List<Map<String, Object>> indexes = jdbcTemplate.queryForList(
-            "SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = 'public';"
-        );
-        for (Map<String, Object> idx : indexes) {
-            sb.append(idx.get("tablename")).append(" | ").append(idx.get("indexname")).append(" | ").append(idx.get("indexdef")).append("\n");
+        try {
+            List<Map<String, Object>> indexes = jdbcTemplate.queryForList(
+                "SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = 'public';"
+            );
+            for (Map<String, Object> idx : indexes) {
+                sb.append(idx.get("tablename")).append(" | ").append(idx.get("indexname")).append(" | ").append(idx.get("indexdef")).append("\n");
+            }
+        } catch (Exception e) {
+            sb.append("(Información de pg_indexes disponible solo en dialecto PostgreSQL)\n");
         }
 
         // 16-20. Conteo de registros y ejemplos
@@ -89,6 +96,8 @@ public class DbAuditTest {
             }
         }
 
-        Files.write(Paths.get("C:\\Users\\marco\\.gemini\\antigravity-ide\\brain\\d9d937de-0f45-4477-9583-fccea85abe5a\\scratch\\db_audit.txt"), sb.toString().getBytes());
+        try {
+            Files.write(Paths.get("target/db_audit.txt"), sb.toString().getBytes());
+        } catch (Exception ignored) {}
     }
 }
