@@ -12,6 +12,7 @@ Thumbs.db
 **/target/
 *.class
 *.jar
+!backend/app.jar
 *.war
 *.ear
 *.log
