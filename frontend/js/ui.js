@@ -236,6 +236,7 @@ const UI = {
         container.innerHTML = `
             <div class="modal-overlay" onclick="UI.closeModal(event)">
                 <div class="modal-content" onclick="event.stopPropagation()">
+                    <div class="modal-drag-handle"></div>
                     <button class="modal-close" onclick="UI.closeModal(null, true)" aria-label="Cerrar modal">
                         <i data-lucide="x"></i>
                     </button>
