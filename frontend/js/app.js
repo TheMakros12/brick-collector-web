@@ -183,16 +183,23 @@ const App = {
     handlePurchaseTypeChange(selectElem, estimatedPrice) {
         const group = document.getElementById('purchase-price-group');
         const priceInput = document.getElementById('purchase-price');
+        const locInput = document.getElementById('purchase-location-input');
 
         if (selectElem.value === 'gift') {
             group.style.display = 'none';
             priceInput.value = 0;
+            if (locInput && (!locInput.value || locInput.value.trim() === '')) {
+                locInput.value = '🎁 Regalo (Origen Desconocido)';
+            }
         } else {
             group.style.display = 'block';
             if (selectElem.value === 'self') {
                 priceInput.value = estimatedPrice;
             } else if (selectElem.value === 'partial') {
                 priceInput.value = '';
+            }
+            if (locInput && locInput.value === '🎁 Regalo (Origen Desconocido)') {
+                locInput.value = '';
             }
         }
     },

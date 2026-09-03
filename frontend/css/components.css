@@ -1513,36 +1513,44 @@ table img {
     border-color: var(--border-strong);
 }
 
-.discount-pill {
-    background: var(--bg-surface);
+.discount-pill, .store-pill {
+    background: var(--bg-surface-muted);
     border: 1px solid var(--border);
-    color: var(--text-secondary);
-    padding: 4px 10px;
-    border-radius: 8px;
-    font-size: 0.75rem;
+    color: var(--text-primary);
+    padding: 6px 13px;
+    border-radius: 20px;
+    font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.discount-pill:hover, .discount-pill:active {
-    background: var(--accent-bg);
-    border-color: var(--accent);
-    color: var(--accent-text);
-}
-
-.store-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(8px);
+    user-select: none;
+}
+
+.discount-pill:hover, .store-pill:hover {
+    background: rgba(227, 0, 11, 0.12);
+    border-color: var(--accent);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(227, 0, 11, 0.25);
+}
+
+.discount-pill:active, .store-pill:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
 }
 
 .store-pill-icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     object-fit: contain;
-    border-radius: 3px;
+    border-radius: 4px;
     flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 /* Filter Chips Scroll Container & Category Chips */

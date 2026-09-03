@@ -315,6 +315,7 @@ const UI = {
                                 <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Juguettos'"><img src="./assets/stores/juguettos.webp" alt="Juguettos" class="store-pill-icon"> Juguettos</button>
                                 <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Don Dino'"><img src="./assets/stores/dondino.webp" alt="Don Dino" class="store-pill-icon"> Don Dino</button>
                                 <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Carrefour'"><img src="./assets/stores/carrefour.webp" alt="Carrefour" class="store-pill-icon"> Carrefour</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='🎁 Regalo (Origen Desconocido)'">🎁 Regalo</button>
                                 <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Otros'">Otros</button>
                             </div>
                         </div>
