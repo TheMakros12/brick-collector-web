@@ -382,12 +382,14 @@ const UI = {
             ${purchaseHtml}
 
             <!-- 4. FULL-WIDTH PRICE HISTORY CHART CARD -->
+            ${isInCollection ? `
             <div class="modal-section mb-4" style="margin-bottom: 16px;">
                 <div class="modal-section-title"><i data-lucide="trending-up"></i> Histórico de Valor de Mercado</div>
                 <div id="set-history-chart-container" style="width: 100%;">
                     <span style="font-size: 0.85rem; color: var(--text-muted);"><i data-lucide="loader" class="spin"></i> Cargando historial...</span>
                 </div>
             </div>
+            ` : ''}
 
             <!-- 5. ACTION BUTTONS FOOTER -->
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -402,7 +404,9 @@ const UI = {
         if (document.getElementById('purchase-date')) {
             UI.initCustomDatePicker('purchase-date');
         }
-        UI.loadIndividualSetHistoryChart(set.set_num);
+        if (isInCollection) {
+            UI.loadIndividualSetHistoryChart(set.set_num);
+        }
         lucide.createIcons();
         // Add basic switch styles if not in css
         if(!document.getElementById('switch-style')) {

@@ -61,7 +61,6 @@ const CollectionView = {
                         <button class="btn" style="border-radius: 12px;" onclick="CollectionView.exportPDF()">
                             <i data-lucide="send"></i> Enviar PDF
                         </button>
-                        ${!isCol ? `<button class="btn btn-outline" style="border-radius: 12px;" onclick="CollectionView.shareWishlist()"><i data-lucide="share-2"></i> Compartir</button>` : ''}
                     </div>
                 </div>
 
@@ -265,15 +264,28 @@ const CollectionView = {
             <div style="position: absolute; top: 0; left: 0; right: 0; height: 180px; background: linear-gradient(135deg, #F0F4F8 0%, #FFFFFF 100%); z-index: 0; opacity: 0.5;"></div>
         `;
 
-        let itemsHtml = items.map(i => {
+        const getBase64 = async (url) => {
+            try {
+                const res = await fetch(url);
+                const blob = await res.blob();
+                return new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch(e) { return ''; }
+        };
+
+        const itemsHtmlArray = await Promise.all(items.map(async i => {
             const setIdShort = i.set_num.split('-')[0];
             const priceVal = (i.retail_price || 0).toFixed(2);
             const proxyImg = API.getProxyImageUrl(i.set_img_url);
+            const b64Img = await getBase64(proxyImg) || proxyImg; // Fallback to URL if base64 fails
 
             return `
             <div style="display: flex; align-items: center; padding: 25px 0; border-bottom: 1px solid #EAEAEA; page-break-inside: avoid; position: relative; z-index: 1;">
                 <div style="width: 120px; height: 120px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 8px; margin-right: 35px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                    <img src="${proxyImg}" crossorigin="anonymous" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                    <img src="${b64Img}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                 </div>
                 <div style="flex: 2; display: flex; flex-direction: column; justify-content: center;">
                     <div style="font-size: 20px; font-weight: 800; margin-bottom: 4px;">#${setIdShort}</div>
@@ -294,7 +306,9 @@ const CollectionView = {
                 </div>
             </div>
             `;
-        }).join('');
+        }));
+        
+        let itemsHtml = itemsHtmlArray.join('');
 
         container.innerHTML = `
             ${headerBg}

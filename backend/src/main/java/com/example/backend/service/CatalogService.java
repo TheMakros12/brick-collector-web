@@ -30,6 +30,7 @@ public class CatalogService {
 
     private final RestTemplate restTemplate;
     private final ThemeRepository themeRepository;
+    private final LegoSetRepository legoSetRepository;
 
     @Value("${api.rebrickable.key}")
     private String rebrickableKey;
@@ -39,9 +40,10 @@ public class CatalogService {
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    public CatalogService(RestTemplate restTemplate, ThemeRepository themeRepository) {
+    public CatalogService(RestTemplate restTemplate, ThemeRepository themeRepository, LegoSetRepository legoSetRepository) {
         this.restTemplate = restTemplate;
         this.themeRepository = themeRepository;
+        this.legoSetRepository = legoSetRepository;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -97,6 +99,16 @@ public class CatalogService {
                                .thenComparing(LegoSetDTO::getNumParts, Comparator.nullsLast(Comparator.reverseOrder())));
 
         List<LegoSetDTO> topResults = results.stream().limit(20).collect(Collectors.toList());
+
+        for (LegoSetDTO dto : topResults) {
+            Optional<LegoSet> existing = legoSetRepository.findById(dto.getSetId());
+            if (existing.isPresent()) {
+                LegoSet set = existing.get();
+                if (set.getRetailPrice() != null) {
+                    dto.setRetailPrice(set.getRetailPrice());
+                }
+            }
+        }
 
         return topResults;
     }

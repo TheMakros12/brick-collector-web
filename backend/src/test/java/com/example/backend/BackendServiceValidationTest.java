@@ -97,7 +97,7 @@ public class BackendServiceValidationTest {
     void testSearchDoesNotIncreaseDB() {
         // En la implementación real CatalogService.searchSets solo retorna DTOs, no tiene repositorio.
         // Simulamos un CatalogService con los repositorios para verificar que de forma aislada no llama al save.
-        CatalogService realCatalogService = new CatalogService(restTemplate, themeRepository);
+        CatalogService realCatalogService = new CatalogService(restTemplate, themeRepository, legoSetRepository);
         // (Nota: el mock de restTemplate retornaría vacio sin configuración, pero para test de lógica comprobamos que save no se invoca, lo cual es trivial porque el método saveSetToDb fue eliminado del código)
         // Ya no existen métodos saveSetToDb en CatalogService.
         assertTrue(true, "CatalogService ya no tiene el método saveSetToDb, no puede insertar en BD");
