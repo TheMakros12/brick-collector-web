@@ -543,14 +543,27 @@ const StatsView = {
             storeMap[loc].totalInvested += price;
         });
 
+        const storeIcons = {
+            'LEGO Store': './assets/stores/lego.webp',
+            'Amazon': './assets/stores/amazon.webp',
+            'Juguettos': './assets/stores/juguettos.webp',
+            'Don Dino': './assets/stores/dondino.webp',
+            'Carrefour': './assets/stores/carrefour.webp'
+        };
+
         const sortedStores = Object.entries(storeMap)
             .map(([name, data]) => ({ name, ...data }))
             .sort((a, b) => b.totalInvested - a.totalInvested);
 
-        const rowsHtml = sortedStores.map(s => `
+        const rowsHtml = sortedStores.map(s => {
+            const iconUrl = storeIcons[s.name];
+            const iconHtml = iconUrl 
+                ? `<img src="${iconUrl}" alt="${s.name}" style="width:22px; height:22px; object-fit:contain; border-radius:4px; flex-shrink:0;">`
+                : `<span style="font-size:1.1rem;">🏬</span>`;
+            return `
             <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:12px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:1.1rem;">🏬</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    ${iconHtml}
                     <div>
                         <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">${s.name}</div>
                         <div style="font-size:0.75rem; color:var(--text-muted);">${s.count} set${s.count !== 1 ? 's' : ''}</div>
@@ -560,7 +573,8 @@ const StatsView = {
                     €${s.totalInvested.toFixed(2)}
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         return `
             <div class="bento-card bento-col-12" style="padding:20px;">

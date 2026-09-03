@@ -1,15 +1,17 @@
 const CollectionView = {
     render(container) {
         const isCol = App.collectionState.tab === 'collection';
-        const colCount = Storage.getCollection().length;
-        const wishCount = Storage.getWishlist().length;
-        const items = isCol ? Storage.getCollection() : Storage.getWishlist();
+        const colList = Storage.getCollection() || [];
+        const wishList = Storage.getWishlist() || [];
+        const colCount = colList.length;
+        const wishCount = wishList.length;
+        const items = isCol ? colList : wishList;
 
         // Filter & Sort items
-        let filteredItems = items;
+        let filteredItems = Array.isArray(items) ? [...items] : [];
         if (App.collectionState.searchQuery) {
             const q = App.collectionState.searchQuery.toLowerCase();
-            filteredItems = items.filter(i => i.name.toLowerCase().includes(q) || i.set_num.includes(q));
+            filteredItems = filteredItems.filter(i => i && i.name && (i.name.toLowerCase().includes(q) || (i.set_num && i.set_num.includes(q))));
         }
 
         if (App.collectionState.sortBy === 'pieces') {
@@ -21,7 +23,7 @@ const CollectionView = {
         }
 
         // Calculate unique themes for chips
-        const uniqueThemes = [...new Set(items.map(i => i.theme_id).filter(id => id))];
+        const uniqueThemes = Array.isArray(items) ? [...new Set(items.map(i => i.theme_id).filter(id => id))] : [];
 
         const themeChipsHtml = [
             `<button class="category-chip ${App.collectionState.themeFilter === 'all' ? 'active' : ''}" data-cat="all" onclick="CollectionView.updateCollectionThemeFilter('all')">Todas las categorías</button>`,
@@ -32,7 +34,7 @@ const CollectionView = {
         ].join('');
 
         // Calculate unique purchase years
-        const uniqueYears = [...new Set(items.map(i => i.purchaseDetails && i.purchaseDetails.purchaseYear).filter(y => y))].sort((a, b) => b - a);
+        const uniqueYears = Array.isArray(items) ? [...new Set(items.map(i => i.purchaseDetails && i.purchaseDetails.purchaseYear).filter(y => y))].sort((a, b) => b - a) : [];
         const yearOptions = uniqueYears.map(y =>
             `<option value="${y}" ${App.collectionState.yearFilter == y ? 'selected' : ''}>Comprado en ${y}</option>`
         ).join('');

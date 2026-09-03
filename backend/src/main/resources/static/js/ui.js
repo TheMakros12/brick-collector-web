@@ -306,16 +306,16 @@ const UI = {
 
                     <div class="input-group" style="margin-top: 14px; margin-bottom: 0;">
                         <label>Lugar / Tienda de Compra</label>
-                        <input type="text" id="purchase-location-input" class="input-field" placeholder="ej. LEGO Store, Amazon, El Corte Inglés..." value="${set && set.purchaseDetails ? (set.purchaseDetails.purchaseLocation || '') : (set.purchaseLocation || '')}">
+                        <input type="text" id="purchase-location-input" class="input-field" placeholder="ej. LEGO Store, Amazon, Juguettos..." value="${set && set.purchaseDetails ? (set.purchaseDetails.purchaseLocation || '') : (set.purchaseLocation || '')}">
                         <div style="margin-top: 8px;">
                             <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Atajos de Tiendas Frecuentes</div>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='LEGO Store'">🏬 LEGO Store</button>
-                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='Amazon'">📦 Amazon</button>
-                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='El Corte Inglés'">🏢 El Corte Inglés</button>
-                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='Wallapop'">🤝 Wallapop</button>
-                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='Carrefour'">🛒 Carrefour</button>
-                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='FNAC'">💿 FNAC</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='LEGO Store'"><img src="./assets/stores/lego.webp" alt="LEGO" class="store-pill-icon"> LEGO Store</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Amazon'"><img src="./assets/stores/amazon.webp" alt="Amazon" class="store-pill-icon"> Amazon</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Juguettos'"><img src="./assets/stores/juguettos.webp" alt="Juguettos" class="store-pill-icon"> Juguettos</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Don Dino'"><img src="./assets/stores/dondino.webp" alt="Don Dino" class="store-pill-icon"> Don Dino</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Carrefour'"><img src="./assets/stores/carrefour.webp" alt="Carrefour" class="store-pill-icon"> Carrefour</button>
+                                <button type="button" class="discount-pill store-pill" onclick="document.getElementById('purchase-location-input').value='Otros'">Otros</button>
                             </div>
                         </div>
                     </div>

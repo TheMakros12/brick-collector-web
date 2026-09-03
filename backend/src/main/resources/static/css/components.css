@@ -1531,6 +1531,20 @@ table img {
     color: var(--accent-text);
 }
 
+.store-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.store-pill-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
 /* Filter Chips Scroll Container & Category Chips */
 .filter-chips-scroll {
     display: flex;

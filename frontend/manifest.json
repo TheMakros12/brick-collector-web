@@ -9,13 +9,13 @@
   "theme_color": "#E3000B",
   "icons": [
     {
-      "src": "Lego.webp",
+      "src": "./assets/Lego.webp",
       "sizes": "192x192",
       "type": "image/webp",
       "purpose": "any maskable"
     },
     {
-      "src": "Lego.webp",
+      "src": "./assets/Lego.webp",
       "sizes": "512x512",
       "type": "image/webp",
       "purpose": "any maskable"
