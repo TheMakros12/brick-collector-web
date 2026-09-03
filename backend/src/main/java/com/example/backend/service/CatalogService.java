@@ -206,6 +206,69 @@ public class CatalogService {
         return null;
     }
 
+    public static class BrickEconomyDataDTO {
+        private Double retailPriceEu;
+        private Double currentValueNew;
+        private Boolean retired;
+        private List<Map<String, Object>> priceEventsNew;
+
+        public Double getRetailPriceEu() { return retailPriceEu; }
+        public void setRetailPriceEu(Double retailPriceEu) { this.retailPriceEu = retailPriceEu; }
+        public Double getCurrentValueNew() { return currentValueNew; }
+        public void setCurrentValueNew(Double currentValueNew) { this.currentValueNew = currentValueNew; }
+        public Boolean getRetired() { return retired; }
+        public void setRetired(Boolean retired) { this.retired = retired; }
+        public List<Map<String, Object>> getPriceEventsNew() { return priceEventsNew; }
+        public void setPriceEventsNew(List<Map<String, Object>> priceEventsNew) { this.priceEventsNew = priceEventsNew; }
+    }
+
+    public BrickEconomyDataDTO fetchFullBrickEconomyData(String setId) {
+        String cleanId = (setId != null && !setId.contains("-")) ? setId + "-1" : setId;
+
+        if (brickEconomyKey != null && !brickEconomyKey.isEmpty() && !brickEconomyKey.contains("replace-me")) {
+            try {
+                String url = "https://www.brickeconomy.com/api/v1/set/" + cleanId + "?currency=EUR";
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("x-apikey", brickEconomyKey);
+                headers.set("Accept", "application/json");
+                headers.set("User-Agent", "BrickCollector/1.0 (Integration/API)");
+
+                HttpEntity<String> entity = new HttpEntity<>(headers);
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    String bodyStr = response.getBody().trim();
+                    if (bodyStr.startsWith("{") || bodyStr.startsWith("[")) {
+                        ObjectMapper mapper = new ObjectMapper();
+                        Map<String, Object> body = mapper.readValue(bodyStr, Map.class);
+                        Map<String, Object> dataMap = body;
+                        if (body.get("data") instanceof Map) {
+                            dataMap = (Map<String, Object>) body.get("data");
+                        }
+
+                        BrickEconomyDataDTO dto = new BrickEconomyDataDTO();
+                        if (dataMap.get("retail_price_eu") != null) {
+                            dto.setRetailPriceEu(((Number) dataMap.get("retail_price_eu")).doubleValue());
+                        }
+                        if (dataMap.get("current_value_new") != null) {
+                            dto.setCurrentValueNew(((Number) dataMap.get("current_value_new")).doubleValue());
+                        }
+                        if (dataMap.get("retired") != null) {
+                            dto.setRetired((Boolean) dataMap.get("retired"));
+                        }
+                        if (dataMap.get("price_events_new") instanceof List) {
+                            dto.setPriceEventsNew((List<Map<String, Object>>) dataMap.get("price_events_new"));
+                        }
+                        return dto;
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Error fetching full BrickEconomy data: " + e.getMessage());
+            }
+        }
+        return null;
+    }
+
     public LegoSetDTO getSetDetails(String setId) {
         if (setId != null && !setId.contains("-")) {
             setId = setId + "-1";

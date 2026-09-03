@@ -498,9 +498,9 @@ const UI = {
         const updateTriggerText = () => {
             if (input.value) {
                 const [y, m, d] = input.value.split('-');
-                triggerBtn.innerHTML = `<i data-lucide="calendar" style="width:18px;height:18px;color:var(--accent);"></i> <span style="font-weight:600;">${parseInt(d)} de ${monthNames[parseInt(m)-1]} de ${y}</span>`;
+                triggerBtn.innerHTML = `<i data-lucide="calendar" style="width:18px;height:18px;color:var(--accent);"></i> <span style="font-weight:600;">${parseInt(d)} de ${monthNames[parseInt(m)-1]} de ${y}</span> <i data-lucide="chevron-down" style="width:16px;height:16px;margin-left:auto;color:var(--text-muted);"></i>`;
             } else {
-                triggerBtn.innerHTML = `<i data-lucide="calendar" style="width:18px;height:18px;color:var(--text-muted);"></i> <span style="color:var(--text-muted);">Seleccionar fecha...</span>`;
+                triggerBtn.innerHTML = `<i data-lucide="calendar" style="width:18px;height:18px;color:var(--text-muted);"></i> <span style="color:var(--text-muted);">Seleccionar fecha...</span> <i data-lucide="chevron-down" style="width:16px;height:16px;margin-left:auto;color:var(--text-muted);"></i>`;
             }
             lucide.createIcons();
         };

@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Long> {
     List<PriceHistory> findByLegoSetIdOrderByCheckedAtAsc(String setId);
     Optional<PriceHistory> findTopByLegoSetIdOrderByCheckedAtDesc(String setId);
+    boolean existsByLegoSetIdAndCheckedAt(String setId, java.time.LocalDateTime checkedAt);
 }

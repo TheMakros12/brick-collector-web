@@ -69,7 +69,7 @@ public class BackendServiceValidationTest {
         
         collectionService = new CollectionService(collectionRepository, wishlistRepository, legoSetRepository, priceHistoryRepository, catalogService);
         wishlistService = new WishlistService(wishlistRepository, legoSetRepository, catalogService, collectionService);
-        priceUpdateScheduler = new PriceUpdateScheduler(collectionRepository, priceHistoryRepository, catalogService);
+        priceUpdateScheduler = new PriceUpdateScheduler(collectionRepository, priceHistoryRepository, legoSetRepository, catalogService);
 
         sampleTheme = new Theme();
         sampleTheme.setId(601);
