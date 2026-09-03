@@ -238,13 +238,19 @@ public class StatisticsService {
             }
 
             concentration.setTop1Percent((top1Val / currentValueTotal) * 100.0);
+            concentration.setTop1Value(top1Val);
             concentration.setTop3Percent((top3Val / currentValueTotal) * 100.0);
+            concentration.setTop3Value(top3Val);
             concentration.setTop5Percent((top5Val / currentValueTotal) * 100.0);
+            concentration.setTop5Value(top5Val);
             concentration.setTop1SetName(!sortedByValue.isEmpty() ? sortedByValue.get(0).getName() : "N/A");
         } else {
             concentration.setTop1Percent(0.0);
+            concentration.setTop1Value(0.0);
             concentration.setTop3Percent(0.0);
+            concentration.setTop3Value(0.0);
             concentration.setTop5Percent(0.0);
+            concentration.setTop5Value(0.0);
             concentration.setTop1SetName("N/A");
         }
         dto.setConcentration(concentration);
@@ -370,19 +376,30 @@ public class StatisticsService {
         for (LocalDate date : allDatesSet) {
             double totalValueOnDate = 0.0;
 
-            for (Map.Entry<String, TreeMap<LocalDate, Double>> entry : setHistories.entrySet()) {
-                String setId = entry.getKey();
-                TreeMap<LocalDate, Double> timeline = entry.getValue();
+            for (Collection item : collectionItems) {
+                LegoSet set = item.getLegoSet();
+                if (set == null) continue;
 
-                // Get latest price on or before 'date'
-                Map.Entry<LocalDate, Double> floorEntry = timeline.floorEntry(date);
-                if (floorEntry != null) {
-                    lastKnownPrices.put(setId, floorEntry.getValue());
+                // Temporal Filter: Only include sets acquired on or before this snapshot date!
+                if (item.getAcquisitionDate() != null && item.getAcquisitionDate().isAfter(date)) {
+                    continue;
                 }
 
-                Double currentPrice = lastKnownPrices.get(setId);
-                if (currentPrice != null) {
-                    totalValueOnDate += currentPrice;
+                String setId = set.getId();
+                TreeMap<LocalDate, Double> timeline = setHistories.get(setId);
+
+                if (timeline != null) {
+                    Map.Entry<LocalDate, Double> floorEntry = timeline.floorEntry(date);
+                    if (floorEntry != null) {
+                        lastKnownPrices.put(setId, floorEntry.getValue());
+                    }
+                    Double currentPrice = lastKnownPrices.get(setId);
+                    if (currentPrice != null) {
+                        totalValueOnDate += currentPrice;
+                    }
+                } else {
+                    double fallbackVal = set.getRetailPrice() != null ? set.getRetailPrice() : (item.getPurchasePrice() != null ? item.getPurchasePrice() : 0.0);
+                    totalValueOnDate += fallbackVal;
                 }
             }
 

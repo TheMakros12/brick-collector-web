@@ -144,20 +144,20 @@ const StatsView = {
             <div class="kpi-5-grid" style="margin-bottom: 16px;">
                 <div class="kpi-card" style="border-top: 4px solid var(--accent);">
                     <div class="kpi-title">
-                        <span>VALOR ACTUAL</span>
+                        <span>PATRIMONIO (VALOR ACTUAL)</span>
                         <i data-lucide="gem" style="width:16px;height:16px;color:var(--accent);"></i>
                     </div>
                     <div class="kpi-value" style="color:var(--text-primary);">${(stats.currentValueTotal || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">Basado en último histórico</div>
+                    <div class="kpi-subtext">Valor total en mercado secundario</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid #0075FF;">
                     <div class="kpi-title">
-                        <span>DINERO INVERTIDO</span>
+                        <span>INVERSIÓN TOTAL</span>
                         <i data-lucide="shopping-bag" style="width:16px;height:16px;color:#0075FF;"></i>
                     </div>
                     <div class="kpi-value">${(stats.investedTotal || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">Precio real pagado (${stats.setsCount || 0} sets)</div>
+                    <div class="kpi-subtext">Capital real desembolsado (${stats.setsCount || 0} sets)</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid #A855F7;">
@@ -171,24 +171,24 @@ const StatsView = {
 
                 <div class="kpi-card" style="border-top: 4px solid ${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
                     <div class="kpi-title">
-                        <span>PROFIT ACTUAL</span>
+                        <span>PROFIT NETO</span>
                         <i data-lucide="${isPlusvaliaPos ? 'trending-up' : 'trending-down'}" style="width:16px;height:16px;color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};"></i>
                     </div>
                     <div class="kpi-value" style="color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
                         ${isPlusvaliaPos ? '+' : ''}${(stats.plusvaliaTotal || 0).toFixed(2)}€
                     </div>
-                    <div class="kpi-subtext">Beneficio neto absoluto</div>
+                    <div class="kpi-subtext">Patrimonio − Inversión</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid ${isRoiPos ? '#00D26A' : '#FF2A2A'};">
                     <div class="kpi-title">
-                        <span>ROI REAL GLOBAL</span>
+                        <span>ROI INVERSIÓN (%)</span>
                         <i data-lucide="percent" style="width:16px;height:16px;color:${isRoiPos ? '#00D26A' : '#FF2A2A'};"></i>
                     </div>
                     <div class="kpi-value" style="color:${isRoiPos ? '#00D26A' : '#FF2A2A'};">
-                        ${isRoiPos ? '+' : ''}${(stats.roiPercent || 0).toFixed(1)}%
+                        ${stats.investedTotal === 0 ? '+100.0% (Regalos)' : ((isRoiPos ? '+' : '') + (stats.roiPercent || 0).toFixed(1) + '%')}
                     </div>
-                    <div class="kpi-subtext">Rendimiento ponderado global</div>
+                    <div class="kpi-subtext">Rendimiento sobre capital real</div>
                 </div>
             </div>
 
@@ -207,11 +207,11 @@ const StatsView = {
 
                 <div class="kpi-card" style="border-top: 4px solid #0075FF;">
                     <div class="kpi-title">
-                        <span>AHORRO CONSEGUIDO</span>
+                        <span>AHORRO ACUMULADO</span>
                         <i data-lucide="piggy-bank" style="width:16px;height:16px;color:#0075FF;"></i>
                     </div>
                     <div class="kpi-value" style="color:#0075FF;">+${(stats.savingsTotal || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">Ahorro acumulado vs PVP</div>
+                    <div class="kpi-subtext">PVP − Inversión (ofertas + regalos)</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid #00D26A;">
@@ -278,6 +278,12 @@ const StatsView = {
                                 ${(hist.diffFromAllTimeHigh || 0) >= 0 ? '+' : ''}${(hist.diffFromAllTimeHigh || 0).toFixed(2)}€ (${(hist.diffPctFromAllTimeHigh || 0).toFixed(1)}%)
                             </span>
                         </div>
+                        <div class="historic-summary-item">
+                            <span class="historic-summary-label">Crecimiento desde Origen</span>
+                            <span class="historic-summary-value" style="color:${(hist.growthFromFirstSnapshot || 0) >= 0 ? '#00D26A' : '#FF2A2A'};">
+                                ${(hist.growthFromFirstSnapshot || 0) >= 0 ? '+' : ''}${(hist.growthFromFirstSnapshot || 0).toFixed(1)}%
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -328,18 +334,26 @@ const StatsView = {
                         <div style="background:var(--bg-surface-muted); padding:12px 14px; border-radius:10px; border:1px solid var(--border);">
                             <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; margin-bottom:4px;">
                                 <span>Top 1 Set Más Valioso</span>
-                                <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent);">${(conc.top1Percent || 0).toFixed(1)}% del total</span>
+                                <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent); font-weight:700;">
+                                    ${(conc.top1Percent || 0).toFixed(1)}% (${(conc.top1Value || 0).toFixed(2)}€)
+                                </span>
                             </div>
                             <div style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${conc.top1SetName}">${conc.top1SetName || 'N/A'}</div>
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                             <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
-                                <div style="font-size:0.75rem; color:var(--text-muted);">Top 3 Sets</div>
-                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.1rem; font-weight:700; color:#0075FF;">${(conc.top3Percent || 0).toFixed(1)}%</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 3 Sets</div>
+                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#0075FF;">
+                                    ${(conc.top3Percent || 0).toFixed(1)}%
+                                </div>
+                                <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top3Value || 0).toFixed(2)}€</div>
                             </div>
                             <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
-                                <div style="font-size:0.75rem; color:var(--text-muted);">Top 5 Sets</div>
-                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.1rem; font-weight:700; color:#FFC700;">${(conc.top5Percent || 0).toFixed(1)}%</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 5 Sets</div>
+                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#FFC700;">
+                                    ${(conc.top5Percent || 0).toFixed(1)}%
+                                </div>
+                                <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top5Value || 0).toFixed(2)}€</div>
                             </div>
                         </div>
                     </div>

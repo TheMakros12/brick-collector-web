@@ -145,8 +145,11 @@ public class StatisticsDTO {
     @Data
     public static class ConcentrationDTO {
         private Double top1Percent;
+        private Double top1Value;
         private Double top3Percent;
+        private Double top3Value;
         private Double top5Percent;
+        private Double top5Value;
         private String top1SetName;
     }
 }
