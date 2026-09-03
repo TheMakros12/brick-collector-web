@@ -366,6 +366,9 @@ const StatsView = {
                     </h3>
                     <div id="yearChart" style="width: 100%; min-height: 280px;"></div>
                 </div>
+
+                <!-- TOP TIENDAS & LUGARES DE COMPRA -->
+                ${this.renderStoreBreakdownHTML(col)}
             </div>
 
             <!-- 🏆 5. RANKINGS DE LA COLECCIÓN -->
@@ -521,6 +524,54 @@ const StatsView = {
                 </div>
             `;
         }).join('');
+    },
+
+    renderStoreBreakdownHTML(collection) {
+        if (!collection || collection.length === 0) return '';
+        
+        const storeMap = {};
+        collection.forEach(item => {
+            const loc = (item.purchaseDetails && item.purchaseDetails.purchaseLocation && item.purchaseDetails.purchaseLocation.trim()) 
+                ? item.purchaseDetails.purchaseLocation.trim() 
+                : 'Sin especificar';
+            const price = item.purchaseDetails ? (item.purchaseDetails.pricePaid || 0) : 0;
+            
+            if (!storeMap[loc]) {
+                storeMap[loc] = { count: 0, totalInvested: 0 };
+            }
+            storeMap[loc].count += 1;
+            storeMap[loc].totalInvested += price;
+        });
+
+        const sortedStores = Object.entries(storeMap)
+            .map(([name, data]) => ({ name, ...data }))
+            .sort((a, b) => b.totalInvested - a.totalInvested);
+
+        const rowsHtml = sortedStores.map(s => `
+            <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:12px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.1rem;">🏬</span>
+                    <div>
+                        <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">${s.name}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${s.count} set${s.count !== 1 ? 's' : ''}</div>
+                    </div>
+                </div>
+                <div style="font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1rem; color:var(--accent);">
+                    €${s.totalInvested.toFixed(2)}
+                </div>
+            </div>
+        `).join('');
+
+        return `
+            <div class="bento-card bento-col-12" style="padding:20px;">
+                <h3 style="font-size:1.1rem; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="shopping-bag" style="width:18px;height:18px;color:var(--accent);"></i> Top Tiendas & Lugares de Compra
+                </h3>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+                    ${rowsHtml}
+                </div>
+            </div>
+        `;
     },
 
     renderRankingTableHTML(items, type) {

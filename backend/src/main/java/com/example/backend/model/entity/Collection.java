@@ -29,6 +29,9 @@ public class Collection {
     @Column(name = "acquisition_date")
     private LocalDate acquisitionDate;
 
+    @Column(name = "purchase_location", length = 100)
+    private String purchaseLocation;
+
     public enum AcquisitionType {
         PURCHASED, PARTIAL, GIFT
     }

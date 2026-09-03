@@ -304,6 +304,22 @@ const UI = {
                         ` : ''}
                     </div>
 
+                    <div class="input-group" style="margin-top: 14px; margin-bottom: 0;">
+                        <label>Lugar / Tienda de Compra</label>
+                        <input type="text" id="purchase-location-input" class="input-field" placeholder="ej. LEGO Store, Amazon, El Corte Inglés..." value="${item && item.purchaseDetails ? (item.purchaseDetails.purchaseLocation || '') : ''}">
+                        <div style="margin-top: 8px;">
+                            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Atajos de Tiendas Frecuentes</div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='LEGO Store'">🏬 LEGO Store</button>
+                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='Amazon'">📦 Amazon</button>
+                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='El Corte Inglés'">🏢 El Corte Inglés</button>
+                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='Wallapop'">🤝 Wallapop</button>
+                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='Carrefour'">🛒 Carrefour</button>
+                                <button type="button" class="discount-pill" onclick="document.getElementById('purchase-location-input').value='FNAC'">💿 FNAC</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="margin-top: 14px;">
                         <button class="btn btn-outline w-full" onclick="App.savePurchaseDetails('${set.set_num}')"><i data-lucide="save"></i> Guardar Cambios de Compra</button>
                     </div>

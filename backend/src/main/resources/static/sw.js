@@ -1,4 +1,4 @@
-const CACHE_NAME = 'brickcollector-v10';
+const CACHE_NAME = 'brickcollector-v11';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

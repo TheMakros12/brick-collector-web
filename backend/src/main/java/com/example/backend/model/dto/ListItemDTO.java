@@ -10,4 +10,5 @@ public class ListItemDTO {
     private Integer purchaseYear;
     private String acquisitionDate;
     private String acquisitionType;
+    private String purchaseLocation;
 }

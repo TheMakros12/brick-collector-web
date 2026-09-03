@@ -24,6 +24,7 @@ const Storage = {
                     pricePaid: item.purchasePrice,
                     purchaseYear: item.purchaseYear,
                     acquisitionDate: item.acquisitionDate,
+                    purchaseLocation: item.purchaseLocation,
                     type: item.acquisitionType ? (item.acquisitionType.toLowerCase() === 'purchased' ? 'self' : item.acquisitionType.toLowerCase()) : 'self'
                 }
             });
@@ -62,7 +63,7 @@ const Storage = {
         }
     },
 
-    updateSetInCollection: async (itemId, purchasePrice, acquisitionDate, acquisitionType) => {
+    updateSetInCollection: async (itemId, purchasePrice, acquisitionDate, acquisitionType, purchaseLocation) => {
         try {
             let apiType = 'PURCHASED';
             if (acquisitionType === 'gift' || acquisitionType === 'GIFT') apiType = 'GIFT';
@@ -76,7 +77,7 @@ const Storage = {
 
             await API.fetchBackend(`/collection/update/${itemId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ purchasePrice, acquisitionDate, purchaseYear, acquisitionType: apiType })
+                body: JSON.stringify({ purchasePrice, acquisitionDate, purchaseYear, acquisitionType: apiType, purchaseLocation })
             });
             await Storage.fetchAll();
         } catch (e) {

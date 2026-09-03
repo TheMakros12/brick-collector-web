@@ -105,10 +105,14 @@ public class CollectionService {
     }
     
     @Transactional
-    public ListItemDTO updateSet(Long itemId, Double purchasePrice, String acquisitionDate, Integer purchaseYear, String acquisitionType) {
+    public ListItemDTO updateSet(Long itemId, Double purchasePrice, String acquisitionDate, Integer purchaseYear, String acquisitionType, String purchaseLocation) {
         Collection item = collectionRepository.findById(itemId)
             .orElseThrow(() -> new IllegalArgumentException("Ítem no encontrado"));
         
+        if (purchaseLocation != null) {
+            item.setPurchaseLocation(purchaseLocation.trim());
+        }
+
         if (acquisitionType != null && !acquisitionType.isBlank()) {
             try {
                 item.setAcquisitionType(Collection.AcquisitionType.valueOf(acquisitionType.trim().toUpperCase()));
@@ -137,9 +141,14 @@ public class CollectionService {
     }
 
     @Transactional
+    public ListItemDTO updateSet(Long itemId, Double purchasePrice, String acquisitionDate, Integer purchaseYear, String acquisitionType) {
+        return updateSet(itemId, purchasePrice, acquisitionDate, purchaseYear, acquisitionType, null);
+    }
+
+    @Transactional
     public ListItemDTO updateSet(Long itemId, Double purchasePrice, Integer purchaseYear, String acquisitionType) {
         String acqDate = purchaseYear != null ? LocalDate.of(purchaseYear, 1, 1).toString() : null;
-        return updateSet(itemId, purchasePrice, acqDate, purchaseYear, acquisitionType);
+        return updateSet(itemId, purchasePrice, acqDate, purchaseYear, acquisitionType, null);
     }
     
     private void createInitialPriceHistory(LegoSet set) {
@@ -154,6 +163,7 @@ public class CollectionService {
         ListItemDTO dto = new ListItemDTO();
         dto.setId(item.getId());
         dto.setPurchasePrice(item.getPurchasePrice());
+        dto.setPurchaseLocation(item.getPurchaseLocation());
         if (item.getAcquisitionType() != null) {
             dto.setAcquisitionType(item.getAcquisitionType().name());
         }

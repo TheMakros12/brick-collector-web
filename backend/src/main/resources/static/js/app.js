@@ -201,9 +201,11 @@ const App = {
         const type = document.getElementById('purchase-type').value;
         const priceInput = document.getElementById('purchase-price');
         const dateInput = document.getElementById('purchase-date');
+        const locInput = document.getElementById('purchase-location-input');
 
         const price = parseFloat(priceInput.value) || 0;
         const acquisitionDate = dateInput.value || new Date().toISOString().split('T')[0];
+        const purchaseLocation = locInput ? locInput.value.trim() : '';
 
         let set = Storage.getCollection().find(s => s.set_num === setId);
         let isNew = false;
@@ -218,14 +220,14 @@ const App = {
             if (added) {
                 const freshItem = Storage.getCollection().find(s => s.set_num === setId);
                 if (freshItem && freshItem.itemId) {
-                    await Storage.updateSetInCollection(freshItem.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
+                    await Storage.updateSetInCollection(freshItem.itemId, type === 'gift' ? 0 : price, acquisitionDate, type, purchaseLocation);
                 }
                 this.pendingAddSet = null;
                 this.myPiecesState.allPieces = null;
                 UI.showToast("Añadido a Colección con datos de compra", "success");
             }
         } else if (set && set.itemId) {
-            await Storage.updateSetInCollection(set.itemId, type === 'gift' ? 0 : price, acquisitionDate, type);
+            await Storage.updateSetInCollection(set.itemId, type === 'gift' ? 0 : price, acquisitionDate, type, purchaseLocation);
             UI.showToast("Datos de compra actualizados", "success");
         }
 

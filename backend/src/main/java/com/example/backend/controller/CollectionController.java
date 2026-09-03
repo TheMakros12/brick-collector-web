@@ -74,7 +74,8 @@ public class CollectionController {
             String acquisitionDate = payload.get("acquisitionDate") != null ? payload.get("acquisitionDate").toString() : null;
             Integer purchaseYear = payload.get("purchaseYear") != null ? Integer.valueOf(payload.get("purchaseYear").toString()) : null;
             String acquisitionType = payload.get("acquisitionType") != null ? payload.get("acquisitionType").toString() : null;
-            ListItemDTO updated = collectionService.updateSet(itemId, purchasePrice, acquisitionDate, purchaseYear, acquisitionType);
+            String purchaseLocation = payload.get("purchaseLocation") != null ? payload.get("purchaseLocation").toString() : null;
+            ListItemDTO updated = collectionService.updateSet(itemId, purchasePrice, acquisitionDate, purchaseYear, acquisitionType, purchaseLocation);
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
