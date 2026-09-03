@@ -98,19 +98,6 @@ public class CatalogService {
 
         List<LegoSetDTO> topResults = results.stream().limit(20).collect(Collectors.toList());
 
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (LegoSetDTO dto : topResults) {
-            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                Double[] prices = fetchPricesFromBrickEconomy(dto.getSetId());
-                if (prices != null) {
-                    dto.setRetailPrice(prices[0]);
-                    dto.setMarketValue(prices[1]);
-                }
-            }, executorService);
-            futures.add(future);
-        }
-
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         return topResults;
     }
 
