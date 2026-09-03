@@ -306,7 +306,7 @@ const UI = {
 
                     <div class="input-group" style="margin-top: 14px; margin-bottom: 0;">
                         <label>Lugar / Tienda de Compra</label>
-                        <input type="text" id="purchase-location-input" class="input-field" placeholder="ej. LEGO Store, Amazon, El Corte Inglés..." value="${item && item.purchaseDetails ? (item.purchaseDetails.purchaseLocation || '') : ''}">
+                        <input type="text" id="purchase-location-input" class="input-field" placeholder="ej. LEGO Store, Amazon, El Corte Inglés..." value="${set && set.purchaseDetails ? (set.purchaseDetails.purchaseLocation || '') : (set.purchaseLocation || '')}">
                         <div style="margin-top: 8px;">
                             <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Atajos de Tiendas Frecuentes</div>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">

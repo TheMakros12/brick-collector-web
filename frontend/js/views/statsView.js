@@ -368,7 +368,7 @@ const StatsView = {
                 </div>
 
                 <!-- TOP TIENDAS & LUGARES DE COMPRA -->
-                ${this.renderStoreBreakdownHTML(col)}
+                ${this.renderStoreBreakdownHTML(Storage.getCollection())}
             </div>
 
             <!-- 🏆 5. RANKINGS DE LA COLECCIÓN -->
