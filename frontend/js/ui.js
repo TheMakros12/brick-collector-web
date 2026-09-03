@@ -97,7 +97,7 @@ const UI = {
                 if (!img.dataset.proxyAttempted && img.src && img.src.startsWith('http') && !img.src.includes('/api/catalog/proxy-image')) {
                     img.dataset.proxyAttempted = "true";
                     img.dataset.bgProcessed = "";
-                    const proxyUrl = `http://localhost:8080/api/catalog/proxy-image?url=${encodeURIComponent(img.src)}`;
+                    const proxyUrl = API.getProxyImageUrl(img.src);
                     const proxyImg = new Image();
                     proxyImg.crossOrigin = "Anonymous";
                     proxyImg.onload = () => processCanvas(proxyImg);

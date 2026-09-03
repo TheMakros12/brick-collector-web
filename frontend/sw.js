@@ -1,23 +1,21 @@
-const CACHE_NAME = 'brickcollector-v11';
+const CACHE_NAME = 'brickcollector-v12';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
-    './manifest.json',
-    './Lego.webp',
-    './css/theme.css',
     './css/style.css',
     './css/components.css',
-    './js/storage.js',
+    './css/theme.css',
+    './js/app.js',
     './js/api.js',
+    './js/storage.js',
     './js/ui.js',
     './js/views/searchView.js',
     './js/views/collectionView.js',
-    './js/views/piecesView.js',
     './js/views/statsView.js',
-    './js/app.js'
+    './manifest.json'
 ];
 
-// Install Event: Cache Core App Shell Assets
+// Install Event: Cache Core Assets
 self.addEventListener('install', (e) => {
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
@@ -48,7 +46,13 @@ self.addEventListener('fetch', (event) => {
     // API calls: Network first
     if (url.pathname.startsWith('/api/')) {
         event.respondWith(
-            fetch(event.request).catch(() => caches.match(event.request))
+            fetch(event.request).catch(async () => {
+                const cached = await caches.match(event.request);
+                return cached || new Response(JSON.stringify({ error: "Sin conexión de red" }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            })
         );
         return;
     }
