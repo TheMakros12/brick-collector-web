@@ -1,0 +1,20 @@
+name: Actualizador Semanal de Precios LEGO®
+
+on:
+  schedule:
+    # Se ejecuta todos los lunes a las 00:00 UTC (Primera hora de la semana)
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-prices:
+    name: Actualizar Precios Colección
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar endpoint de actualización en Render
+        run: |
+          echo "Iniciando llamada al backend en Render..."
+          RESPONSE=$(curl -s -X POST https://brick-collector-web.onrender.com/api/tasks/update-prices \
+               -H "Content-Type: application/json")
+          echo "Resumen de la actualización:"
+          echo "$RESPONSE"
