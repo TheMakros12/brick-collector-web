@@ -1667,3 +1667,78 @@ table img {
     font-weight: 700;
     box-shadow: 0 4px 12px rgba(227, 0, 11, 0.35);
 }
+
+/* Sleek Tooltip System */
+.info-tooltip-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+}
+
+.info-tooltip-wrap .info-tooltip-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    transition: color 0.2s ease, transform 0.2s ease;
+    opacity: 0.7;
+}
+
+.info-tooltip-wrap:hover .info-tooltip-icon {
+    color: var(--accent);
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+.info-tooltip-wrap .info-tooltip-box {
+    visibility: hidden;
+    opacity: 0;
+    width: 250px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    text-align: left;
+    border-radius: 12px;
+    padding: 10px 14px;
+    position: absolute;
+    z-index: 1000;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
+    font-size: 0.78rem;
+    font-weight: 400;
+    line-height: 1.4;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+    pointer-events: none;
+}
+
+.info-tooltip-wrap:hover .info-tooltip-box {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Time Range Filter Buttons */
+.time-range-btn {
+    background: var(--bg-surface-muted);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.time-range-btn:hover {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+.time-range-btn.active {
+    background: var(--accent) !important;
+    color: #fff !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 2px 8px rgba(227, 0, 11, 0.3);
+}

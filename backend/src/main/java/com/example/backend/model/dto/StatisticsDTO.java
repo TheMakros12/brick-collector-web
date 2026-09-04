@@ -16,9 +16,10 @@ public class StatisticsDTO {
     private Double averageDiscountPercent;  // ((retailPriceTotal - investedTotal) / retailPriceTotal) * 100
     private Double valuePerEuroInvested;    // currentValueTotal / investedTotal (ej: 1.35 € por cada 1 €)
 
-    // Gamification
-    private Integer collectorIndex;         // Score 0 - 100
-    private String collectorRank;           // "Leyenda LEGO®", "Maestro Constructor", etc.
+    // New Micro-metrics
+    private Double averagePurchasePricePerSet;
+    private Double averageCurrentValuePerSet;
+    private Double averageSavingsPerSet;
 
     // Concentration analysis
     private ConcentrationDTO concentration;
@@ -41,6 +42,13 @@ public class StatisticsDTO {
     private List<ThemeStatDTO> themesAnalysis;
     private List<AcquisitionStatDTO> acquisitionsAnalysis;
     private List<YearlyStatDTO> yearlyAnalysis;
+    private List<StoreStatDTO> storesAnalysis;
+
+    // Highlighted Stores
+    private String topSavingsStoreName;
+    private Double topSavingsStoreAmount;
+    private String topDiscountStoreName;
+    private Double topDiscountStorePct;
 
     // Rankings
     private RankingsDTO rankings;
@@ -74,7 +82,18 @@ public class StatisticsDTO {
         private Double investedTotal;
         private Double plusvalia;            // currentValueTotal - investedTotal
         private Double roiPercent;           // ((currentValueTotal - investedTotal) / investedTotal) * 100
-        private Double sharePercent;         // (setsCount / totalSets) * 100
+        private Double sharePercent;         // (currentValueTotal / grandTotalValue) * 100
+    }
+
+    @Data
+    public static class StoreStatDTO {
+        private String storeName;
+        private Integer setsCount;
+        private Double investedTotal;
+        private Double retailPriceTotal;
+        private Double currentValueTotal;
+        private Double savingsTotal;          // retailPriceTotal - investedTotal
+        private Double averageDiscountPercent;// ((retailPriceTotal - investedTotal) / retailPriceTotal) * 100
     }
 
     @Data
@@ -151,5 +170,8 @@ public class StatisticsDTO {
         private Double top5Percent;
         private Double top5Value;
         private String top1SetName;
+        private String status;               // "DIVERSIFIED", "MODERATE", "HIGH"
+        private String statusLabel;          // "Colección Diversificada", "Concentración Moderada", "Alta Concentración"
+        private String statusDescription;    // Explicación textual automática
     }
 }

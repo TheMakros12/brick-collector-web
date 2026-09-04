@@ -24,7 +24,9 @@ const App = {
     profileState: {
         mode: 'collection',
         selectedSetId: null,
-        activeRankingTab: 'profit'
+        activeRankingTab: 'profit',
+        themeSort: 'value',
+        timeRange: 'all'
     },
 
     async init() {

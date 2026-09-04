@@ -51,6 +51,7 @@ public class StatisticsService {
         List<StatisticsDTO.FinancialComparisonDTO> financialList = new ArrayList<>();
         Map<Integer, StatisticsDTO.ThemeStatDTO> themeMap = new HashMap<>();
         Map<String, StatisticsDTO.AcquisitionStatDTO> acqMap = new HashMap<>();
+        Map<String, StatisticsDTO.StoreStatDTO> storeMap = new HashMap<>();
         Map<Integer, StatisticsDTO.YearlyStatDTO> yearlyMap = new TreeMap<>(Collections.reverseOrder());
 
         // Initialize acquisition categories
@@ -185,12 +186,47 @@ public class StatisticsService {
                 yDto.setSetsCount(yDto.getSetsCount() + 1);
                 yDto.setInvestedTotal(yDto.getInvestedTotal() + purchasePrice);
             }
+
+            // Store / Location aggregation
+            String storeName = (item.getPurchaseLocation() != null && !item.getPurchaseLocation().isBlank())
+                    ? item.getPurchaseLocation().trim()
+                    : "No especificada";
+
+            StatisticsDTO.StoreStatDTO storeDto = storeMap.computeIfAbsent(storeName, k -> {
+                StatisticsDTO.StoreStatDTO s = new StatisticsDTO.StoreStatDTO();
+                s.setStoreName(k);
+                s.setSetsCount(0);
+                s.setInvestedTotal(0.0);
+                s.setRetailPriceTotal(0.0);
+                s.setCurrentValueTotal(0.0);
+                s.setSavingsTotal(0.0);
+                s.setAverageDiscountPercent(0.0);
+                return s;
+            });
+            storeDto.setSetsCount(storeDto.getSetsCount() + 1);
+            storeDto.setInvestedTotal(storeDto.getInvestedTotal() + purchasePrice);
+            storeDto.setRetailPriceTotal(storeDto.getRetailPriceTotal() + retailPrice);
+            if (hasHistory && currentValue != null) {
+                storeDto.setCurrentValueTotal(storeDto.getCurrentValueTotal() + currentValue);
+            }
         }
 
         dto.setCurrentValueTotal(currentValueTotal);
         dto.setInvestedTotal(investedTotal);
         dto.setRetailPriceTotal(retailPriceTotal);
         dto.setTotalPieces(totalPieces);
+
+        // Micro-métricas globales
+        int grandTotalSets = collectionItems.size();
+        if (grandTotalSets > 0) {
+            dto.setAveragePurchasePricePerSet(investedTotal / grandTotalSets);
+            dto.setAverageCurrentValuePerSet(currentValueTotal / grandTotalSets);
+            dto.setAverageSavingsPerSet((retailPriceTotal - investedTotal) / grandTotalSets);
+        } else {
+            dto.setAveragePurchasePricePerSet(0.0);
+            dto.setAverageCurrentValuePerSet(0.0);
+            dto.setAverageSavingsPerSet(0.0);
+        }
 
         // Plusvalía económica real = Valor Actual - Dinero Invertido
         double plusvaliaTotal = currentValueTotal - investedTotal;
@@ -218,7 +254,7 @@ public class StatisticsService {
             dto.setAverageDiscountPercent(0.0);
         }
 
-        // Concentración de patrimonio (Top 1, Top 3, Top 5)
+        // Concentración de patrimonio (Top 1, Top 3, Top 5) e Interpretación Automática
         StatisticsDTO.ConcentrationDTO concentration = new StatisticsDTO.ConcentrationDTO();
         if (currentValueTotal > 0 && !allSetStats.isEmpty()) {
             List<StatisticsDTO.LegoSetStatDTO> sortedByValue = new ArrayList<>(allSetStats);
@@ -237,13 +273,32 @@ public class StatisticsService {
                 if (sortedByValue.get(i).getCurrentValue() != null) top5Val += sortedByValue.get(i).getCurrentValue();
             }
 
-            concentration.setTop1Percent((top1Val / currentValueTotal) * 100.0);
+            double top1Pct = (top1Val / currentValueTotal) * 100.0;
+            double top3Pct = (top3Val / currentValueTotal) * 100.0;
+            double top5Pct = (top5Val / currentValueTotal) * 100.0;
+
+            concentration.setTop1Percent(top1Pct);
             concentration.setTop1Value(top1Val);
-            concentration.setTop3Percent((top3Val / currentValueTotal) * 100.0);
+            concentration.setTop3Percent(top3Pct);
             concentration.setTop3Value(top3Val);
-            concentration.setTop5Percent((top5Val / currentValueTotal) * 100.0);
+            concentration.setTop5Percent(top5Pct);
             concentration.setTop5Value(top5Val);
             concentration.setTop1SetName(!sortedByValue.isEmpty() ? sortedByValue.get(0).getName() : "N/A");
+
+            // Evaluación de umbrales
+            if (top1Pct < 15.0 && top3Pct < 35.0 && top5Pct < 50.0) {
+                concentration.setStatus("DIVERSIFIED");
+                concentration.setStatusLabel("Colección Diversificada");
+                concentration.setStatusDescription("Bajo riesgo. Tu patrimonio está repartido de forma muy equilibrada sin depender de un set principal.");
+            } else if (top1Pct >= 30.0 || top5Pct >= 70.0) {
+                concentration.setStatus("HIGH");
+                concentration.setStatusLabel("Alta Concentración");
+                concentration.setStatusDescription("Riesgo elevado. Un pequeño grupo de sets acapara la mayor parte del patrimonio acumulado.");
+            } else {
+                concentration.setStatus("MODERATE");
+                concentration.setStatusLabel("Concentración Moderada");
+                concentration.setStatusDescription("Riesgo equilibrado. Pocos sets acumulan un peso patrimonial destacado dentro de tu vitrina.");
+            }
         } else {
             concentration.setTop1Percent(0.0);
             concentration.setTop1Value(0.0);
@@ -252,25 +307,11 @@ public class StatisticsService {
             concentration.setTop5Percent(0.0);
             concentration.setTop5Value(0.0);
             concentration.setTop1SetName("N/A");
+            concentration.setStatus("DIVERSIFIED");
+            concentration.setStatusLabel("Colección Diversificada");
+            concentration.setStatusDescription("Colección sin concentración asignada.");
         }
         dto.setConcentration(concentration);
-
-        // Gamificación: Índice de Coleccionista (0 - 100)
-        int setsCount = collectionItems.size();
-        double volumePts = Math.min(25.0, setsCount * 2.5);
-        double piecesPts = Math.min(25.0, totalPieces / 400.0);
-        double roiPts = dto.getRoiPercent() != null && dto.getRoiPercent() > 0 ? Math.min(20.0, dto.getRoiPercent() * 0.5) : 0.0;
-        double discountPts = dto.getAverageDiscountPercent() != null ? Math.min(15.0, dto.getAverageDiscountPercent() * 0.75) : 0.0;
-        double themePts = Math.min(15.0, themeMap.size() * 3.0);
-
-        int collectorScore = (int) Math.min(100, Math.round(volumePts + piecesPts + roiPts + discountPts + themePts));
-        dto.setCollectorIndex(collectorScore);
-
-        if (collectorScore >= 90) dto.setCollectorRank("Leyenda LEGO®");
-        else if (collectorScore >= 75) dto.setCollectorRank("Maestro Constructor");
-        else if (collectorScore >= 55) dto.setCollectorRank("Inversor Experto");
-        else if (collectorScore >= 35) dto.setCollectorRank("Coleccionista Avanzado");
-        else dto.setCollectorRank("Coleccionista Promesa");
 
         // Indicadores por pieza
         if (totalPieces > 0) {
@@ -281,8 +322,7 @@ public class StatisticsService {
             dto.setValuePerPiece(0.0);
         }
 
-        // Post-process theme stats (Plusvalía, ROI %, % del total)
-        int grandTotalSets = collectionItems.size();
+        // Post-process theme stats (Plusvalía, ROI %, % del valor total)
         for (StatisticsDTO.ThemeStatDTO t : themeMap.values()) {
             t.setPlusvalia(t.getCurrentValueTotal() - t.getInvestedTotal());
             if (t.getInvestedTotal() > 0) {
@@ -290,12 +330,44 @@ public class StatisticsService {
             } else {
                 t.setRoiPercent(null);
             }
-            if (grandTotalSets > 0) {
+            if (currentValueTotal > 0) {
+                t.setSharePercent((t.getCurrentValueTotal() / currentValueTotal) * 100.0);
+            } else if (grandTotalSets > 0) {
                 t.setSharePercent(((double) t.getSetsCount() / grandTotalSets) * 100.0);
             } else {
                 t.setSharePercent(0.0);
             }
         }
+
+        // Post-process store stats & highlights
+        for (StatisticsDTO.StoreStatDTO s : storeMap.values()) {
+            s.setSavingsTotal(s.getRetailPriceTotal() - s.getInvestedTotal());
+            if (s.getRetailPriceTotal() > 0) {
+                s.setAverageDiscountPercent(Math.max(0.0, ((s.getRetailPriceTotal() - s.getInvestedTotal()) / s.getRetailPriceTotal()) * 100.0));
+            } else {
+                s.setAverageDiscountPercent(0.0);
+            }
+        }
+
+        StatisticsDTO.StoreStatDTO topSavingsStore = storeMap.values().stream()
+                .filter(s -> s.getSavingsTotal() != null && s.getSavingsTotal() > 0)
+                .max(Comparator.comparingDouble(StatisticsDTO.StoreStatDTO::getSavingsTotal))
+                .orElse(null);
+        if (topSavingsStore != null) {
+            dto.setTopSavingsStoreName(topSavingsStore.getStoreName());
+            dto.setTopSavingsStoreAmount(topSavingsStore.getSavingsTotal());
+        }
+
+        StatisticsDTO.StoreStatDTO topDiscountStore = storeMap.values().stream()
+                .filter(s -> s.getAverageDiscountPercent() != null && s.getAverageDiscountPercent() > 0 && s.getRetailPriceTotal() > 0)
+                .max(Comparator.comparingDouble(StatisticsDTO.StoreStatDTO::getAverageDiscountPercent))
+                .orElse(null);
+        if (topDiscountStore != null) {
+            dto.setTopDiscountStoreName(topDiscountStore.getStoreName());
+            dto.setTopDiscountStorePct(topDiscountStore.getAverageDiscountPercent());
+        }
+
+        dto.setStoresAnalysis(new ArrayList<>(storeMap.values()));
 
         // Post-process acquisition stats (Ahorro, Plusvalía, ROI %)
         for (StatisticsDTO.AcquisitionStatDTO a : acqMap.values()) {
