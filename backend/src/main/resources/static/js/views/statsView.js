@@ -1,4 +1,7 @@
 const StatsView = {
+    currentStats: null,
+    currentHistoryData: null,
+
     async render(container) {
         container.innerHTML = '<div class="text-center p-5"><i data-lucide="loader" class="spin" style="width:36px;height:36px;color:var(--accent);"></i><div class="mt-2 text-muted">Cargando Dashboard Analítico...</div></div>';
         lucide.createIcons();
@@ -19,7 +22,7 @@ const StatsView = {
                 currentValueTotal: col.reduce((sum, s) => sum + (s.market_value || s.retail_price || 0), 0),
                 investedTotal: col.reduce((sum, s) => sum + (s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0)), 0),
                 retailPriceTotal: col.reduce((sum, s) => sum + (s.retail_price || 0), 0),
-                profitTotal: 0,
+                plusvaliaTotal: 0,
                 roiPercent: 0,
                 setsCount: col.length,
                 totalPieces: col.reduce((sum, s) => sum + (s.num_parts || 0), 0),
@@ -27,13 +30,17 @@ const StatsView = {
                 historicalSummary: { allTimeHighValue: 0, currentValue: 0, diffFromAllTimeHigh: 0, growthFromFirstSnapshot: 0 },
                 themesAnalysis: [],
                 acquisitionsAnalysis: [],
+                storesAnalysis: [],
                 yearlyAnalysis: [],
                 rankings: { top5Profit: [], top5Roi: [], top5Discounts: [], top5Pieces: [], top5MostExpensive: [] },
                 financialComparison: []
             };
-            stats.profitTotal = stats.currentValueTotal - stats.investedTotal;
-            stats.roiPercent = stats.investedTotal > 0 ? (stats.profitTotal / stats.investedTotal) * 100 : 0;
+            stats.plusvaliaTotal = stats.currentValueTotal - stats.investedTotal;
+            stats.roiPercent = stats.investedTotal > 0 ? (stats.plusvaliaTotal / stats.investedTotal) * 100 : 0;
         }
+
+        this.currentStats = stats;
+        this.currentHistoryData = historyData;
 
         if (!App.profileState.selectedSetId && col.length > 0) {
             App.profileState.selectedSetId = col[0].set_num;
@@ -126,35 +133,70 @@ const StatsView = {
         });
     },
 
+    setThemeSort(sortKey) {
+        App.profileState.themeSort = sortKey;
+        document.querySelectorAll('.theme-sort-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sort === sortKey);
+        });
+        const container = document.getElementById('themes-list-container');
+        if (container && this.currentStats) {
+            container.innerHTML = this.renderThemesListHTML(this.currentStats.themesAnalysis || [], sortKey);
+            lucide.createIcons();
+        }
+    },
+
+    setTimeRange(range) {
+        App.profileState.timeRange = range;
+        document.querySelectorAll('.time-range-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.range === range);
+        });
+        if (this.currentStats && this.currentHistoryData) {
+            this.renderTimelineChart(this.currentStats, this.currentHistoryData, range);
+        }
+    },
+
     async onSelectSetForAnalysis(setId) {
         App.profileState.selectedSetId = setId;
         this.render(document.getElementById('main-content'));
     },
 
+    renderTooltipHTML(text) {
+        return `
+            <span class="info-tooltip-wrap">
+                <i data-lucide="info" class="info-tooltip-icon"></i>
+                <span class="info-tooltip-box">${text}</span>
+            </span>
+        `;
+    },
+
     renderCollectionDashboardHTML(stats) {
-        const hist = stats.historicalSummary || {};
         const isRoiPos = (stats.roiPercent || 0) >= 0;
         const isRevalPos = (stats.revaluationPvpPercent || 0) >= 0;
         const isPlusvaliaPos = (stats.plusvaliaTotal || 0) >= 0;
         const activeTab = App.profileState.activeRankingTab || 'profit';
-        const conc = stats.concentration || {};
+        const activeThemeSort = App.profileState.themeSort || 'value';
+        const activeTimeRange = App.profileState.timeRange || 'all';
 
         return `
-            <!-- TOP 5 MAIN FINANCIAL KPI CARDS HEADER (Row 1) -->
-            <div class="kpi-5-grid" style="margin-bottom: 16px;">
+            <!-- 💵 BLOQUE 1: DINERO — SALUD FINANCIERA & PATRIMONIO -->
+            <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                💵 1. DINERO — Salud Financiera & Patrimonio
+            </div>
+
+            <div class="kpi-5-grid" style="margin-bottom: 24px;">
                 <div class="kpi-card" style="border-top: 4px solid var(--accent);">
                     <div class="kpi-title">
                         <span>PATRIMONIO (VALOR ACTUAL)</span>
-                        <i data-lucide="gem" style="width:16px;height:16px;color:var(--accent);"></i>
+                        ${this.renderTooltipHTML('Valor total estimado de mercado en mercado secundario.')}
                     </div>
                     <div class="kpi-value" style="color:var(--text-primary);">${(stats.currentValueTotal || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">Valor total en mercado secundario</div>
+                    <div class="kpi-subtext">Valor en mercado secundario</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid #0075FF;">
                     <div class="kpi-title">
                         <span>INVERSIÓN TOTAL</span>
-                        <i data-lucide="shopping-bag" style="width:16px;height:16px;color:#0075FF;"></i>
+                        ${this.renderTooltipHTML('Capital neto que realmente salió de tu bolsillo.')}
                     </div>
                     <div class="kpi-value">${(stats.investedTotal || 0).toFixed(2)}€</div>
                     <div class="kpi-subtext">Capital real desembolsado (${stats.setsCount || 0} sets)</div>
@@ -163,158 +205,187 @@ const StatsView = {
                 <div class="kpi-card" style="border-top: 4px solid #A855F7;">
                     <div class="kpi-title">
                         <span>P.V.P. OFICIAL</span>
-                        <i data-lucide="tag" style="width:16px;height:16px;color:#A855F7;"></i>
+                        ${this.renderTooltipHTML('Sumatorio del P.V.P. de catálogo oficial LEGO® (MSRP).')}
                     </div>
                     <div class="kpi-value" style="color:var(--text-primary);">${(stats.retailPriceTotal || 0).toFixed(2)}€</div>
                     <div class="kpi-subtext">Sumatorio P.V.P. LEGO®</div>
                 </div>
 
-                <div class="kpi-card" style="border-top: 4px solid ${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
-                    <div class="kpi-title">
-                        <span>PROFIT NETO</span>
-                        <i data-lucide="${isPlusvaliaPos ? 'trending-up' : 'trending-down'}" style="width:16px;height:16px;color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};"></i>
-                    </div>
-                    <div class="kpi-value" style="color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
-                        ${isPlusvaliaPos ? '+' : ''}${(stats.plusvaliaTotal || 0).toFixed(2)}€
-                    </div>
-                    <div class="kpi-subtext">Patrimonio − Inversión</div>
-                </div>
-
                 <div class="kpi-card" style="border-top: 4px solid ${isRoiPos ? '#00D26A' : '#FF2A2A'};">
                     <div class="kpi-title">
                         <span>ROI INVERSIÓN (%)</span>
-                        <i data-lucide="percent" style="width:16px;height:16px;color:${isRoiPos ? '#00D26A' : '#FF2A2A'};"></i>
+                        ${this.renderTooltipHTML('ROI Real: Porcentaje de rentabilidad obtenido sobre el dinero que realmente salió de tu bolsillo (excluyendo regalos).')}
                     </div>
                     <div class="kpi-value" style="color:${isRoiPos ? '#00D26A' : '#FF2A2A'};">
                         ${stats.investedTotal === 0 ? '+100.0% (Regalos)' : ((isRoiPos ? '+' : '') + (stats.roiPercent || 0).toFixed(1) + '%')}
                     </div>
                     <div class="kpi-subtext">Rendimiento sobre capital real</div>
                 </div>
-            </div>
 
-            <!-- SECONDARY KPI ROW (Row 2) -->
-            <div class="kpi-5-grid" style="margin-bottom: 24px;">
                 <div class="kpi-card" style="border-top: 4px solid #A855F7;">
                     <div class="kpi-title">
-                        <span>REVALORIZACIÓN PVP</span>
-                        <i data-lucide="rocket" style="width:16px;height:16px;color:#A855F7;"></i>
+                        <span>REVALORIZACIÓN PVP (%)</span>
+                        ${this.renderTooltipHTML('Revalorización PVP: Crecimiento % del valor de mercado respecto al precio oficial de tienda LEGO® (MSRP).')}
                     </div>
                     <div class="kpi-value" style="color:${isRevalPos ? '#00D26A' : '#FF2A2A'};">
                         ${isRevalPos ? '+' : ''}${(stats.revaluationPvpPercent || 0).toFixed(1)}%
                     </div>
-                    <div class="kpi-subtext">Frente a catálogo tienda</div>
+                    <div class="kpi-subtext">Frente a catálogo oficial LEGO®</div>
                 </div>
+            </div>
 
+            <!-- ⚡ BLOQUE 2: EFICIENCIA & MÉTRICAS UNITARIAS -->
+            <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                ⚡ 2. EFICIENCIA — Rendimiento & Métricas Unitarias
+            </div>
+
+            <div class="kpi-5-grid" style="margin-bottom: 16px;">
                 <div class="kpi-card" style="border-top: 4px solid #0075FF;">
                     <div class="kpi-title">
                         <span>AHORRO ACUMULADO</span>
-                        <i data-lucide="piggy-bank" style="width:16px;height:16px;color:#0075FF;"></i>
+                        ${this.renderTooltipHTML('Ahorro: Dinero total (€) economizado al adquirir sets por debajo de su PVP oficial o recibirlos como regalo.')}
                     </div>
                     <div class="kpi-value" style="color:#0075FF;">+${(stats.savingsTotal || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">PVP − Inversión (ofertas + regalos)</div>
+                    <div class="kpi-subtext">PVP − Inversión real</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid #00D26A;">
                     <div class="kpi-title">
                         <span>DESCUENTO MEDIO %</span>
-                        <i data-lucide="tag" style="width:16px;height:16px;color:#00D26A;"></i>
+                        ${this.renderTooltipHTML('Rebaja porcentual media conseguida en la adquisición de compras.')}
                     </div>
                     <div class="kpi-value" style="color:#00D26A;">-${(stats.averageDiscountPercent || 0).toFixed(1)}%</div>
-                    <div class="kpi-subtext">Descuento medio en compras</div>
+                    <div class="kpi-subtext">Rebaja media conseguida</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid #FFC700;">
                     <div class="kpi-title">
-                        <span>VALOR / € INVERTIDO</span>
-                        <i data-lucide="coins" style="width:16px;height:16px;color:#FFC700;"></i>
+                        <span>VALOR POR € INVERTIDO</span>
+                        ${this.renderTooltipHTML('Valor en euros recuperado en patrimonio por cada 1 euro de inversión real.')}
                     </div>
-                    <div class="kpi-value">${(stats.valuePerEuroInvested || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">Por cada 1€ de inversión</div>
+                    <div class="kpi-value" style="color:#FFC700;">${(stats.valuePerEuroInvested || 0).toFixed(2)}€</div>
+                    <div class="kpi-subtext">Por cada 1€ invertido</div>
                 </div>
 
-                <div class="kpi-card" style="border-top: 4px solid #FFC700; background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(255,199,0,0.05) 100%);">
+                <div class="kpi-card" style="border-top: 4px solid #A855F7;">
                     <div class="kpi-title">
-                        <span>ÍNDICE COLECCIONISTA</span>
-                        <i data-lucide="award" style="width:16px;height:16px;color:#FFC700;"></i>
+                        <span>COSTE POR PIEZA</span>
+                        ${this.renderTooltipHTML('Precio medio pagado por cada ladrillo individual.')}
                     </div>
-                    <div class="kpi-value" style="color:#FFC700;">${stats.collectorIndex || 0} <span style="font-size:0.85rem; color:var(--text-muted);">/ 100</span></div>
-                    <div class="kpi-subtext" style="font-weight:700; color:#FFC700;">🏆 ${stats.collectorRank || 'Coleccionista'}</div>
+                    <div class="kpi-value">${(stats.costPerPiece || 0).toFixed(3)}€</div>
+                    <div class="kpi-subtext">Inversión ÷ ${(stats.totalPieces || 0).toLocaleString('es')} pz</div>
+                </div>
+
+                <div class="kpi-card" style="border-top: 4px solid #00F0FF;">
+                    <div class="kpi-title">
+                        <span>VALOR POR PIEZA</span>
+                        ${this.renderTooltipHTML('Valor actual de mercado asignado a cada pieza de tu colección.')}
+                    </div>
+                    <div class="kpi-value" style="color:#00F0FF;">${(stats.valuePerPiece || 0).toFixed(3)}€</div>
+                    <div class="kpi-subtext">Patrimonio ÷ ${(stats.totalPieces || 0).toLocaleString('es')} pz</div>
                 </div>
             </div>
 
-            <!-- 📊 3. EVOLUCIÓN HISTÓRICA DEL PATRIMONIO Y PLUSVALÍA -->
-            <div style="margin-bottom:12px; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                <i data-lucide="line-chart" style="width:15px;height:15px;color:var(--accent);"></i> 3. Evolución Histórica del Patrimonio & Plusvalía
+            <!-- Micro-métricas Unitarias Banner -->
+            <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; padding:12px 18px; margin-bottom:24px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(0,117,255,0.1); color:#0075FF; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🏷️</div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Precio Medio / Set</div>
+                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:var(--text-primary);">${(stats.averagePurchasePricePerSet || 0).toFixed(2)}€</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(0,210,106,0.1); color:#00D26A; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">💎</div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Valor Medio / Set</div>
+                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#00D26A;">${(stats.averageCurrentValuePerSet || 0).toFixed(2)}€</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(255,199,0,0.1); color:#FFC700; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🐷</div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Ahorro Medio / Set</div>
+                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#FFC700;">+${(stats.averageSavingsPerSet || 0).toFixed(2)}€</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 📈 BLOQUE 3: EVOLUCIÓN HISTÓRICA DEL PATRIMONIO -->
+            <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                📈 3. EVOLUCIÓN — Histórico de Patrimonio & Tendencia
             </div>
 
             <div class="bento-grid mb-4">
                 <div class="bento-card bento-col-12">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
                         <h3 style="font-size: 1.15rem; font-family:'Space Grotesk',sans-serif; font-weight:700; display:flex; align-items:center; gap:8px;">
-                            <i data-lucide="activity" style="width: 20px; height: 20px; color: var(--accent);"></i> Evolución del Valor Total y Plusvalía Acumulada
+                            <i data-lucide="activity" style="width: 20px; height: 20px; color: var(--accent);"></i> Patrimonio Total vs Inversión Acumulada
                         </h3>
-                        <span class="bento-badge-pill"><i data-lucide="clock" style="width:13px;height:13px;"></i> Serie Temporal Dual</span>
+
+                        <!-- RANGOS TEMPORALES -->
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button class="time-range-btn ${activeTimeRange === '1M' ? 'active' : ''}" data-range="1M" onclick="StatsView.setTimeRange('1M')">1M</button>
+                            <button class="time-range-btn ${activeTimeRange === '3M' ? 'active' : ''}" data-range="3M" onclick="StatsView.setTimeRange('3M')">3M</button>
+                            <button class="time-range-btn ${activeTimeRange === '6M' ? 'active' : ''}" data-range="6M" onclick="StatsView.setTimeRange('6M')">6M</button>
+                            <button class="time-range-btn ${activeTimeRange === '1A' ? 'active' : ''}" data-range="1A" onclick="StatsView.setTimeRange('1A')">1A</button>
+                            <button class="time-range-btn ${activeTimeRange === 'all' ? 'active' : ''}" data-range="all" onclick="StatsView.setTimeRange('all')">TODO</button>
+                        </div>
                     </div>
 
                     <div id="timelineChart" style="width: 100%; min-height: 280px;"></div>
 
-                    <!-- Indicadores Históricos Reales -->
-                    <div class="historic-summary-box">
-                        <div class="historic-summary-item">
-                            <span class="historic-summary-label">Máximo Histórico</span>
-                            <span class="historic-summary-value" style="color:#FFC700;">${(hist.allTimeHighValue || 0).toFixed(2)}€</span>
-                        </div>
-                        <div class="historic-summary-item">
-                            <span class="historic-summary-label">Mínimo Histórico</span>
-                            <span class="historic-summary-value" style="color:#0075FF;">${(hist.allTimeLowValue || 0).toFixed(2)}€</span>
-                        </div>
-                        <div class="historic-summary-item">
-                            <span class="historic-summary-label">Valor Actual</span>
-                            <span class="historic-summary-value" style="color:var(--text-primary);">${(hist.currentValue || 0).toFixed(2)}€</span>
-                        </div>
-                        <div class="historic-summary-item">
-                            <span class="historic-summary-label">Dif. vs Máximo</span>
-                            <span class="historic-summary-value" style="color:${(hist.diffFromAllTimeHigh || 0) >= 0 ? '#00D26A' : '#FF2A2A'};">
-                                ${(hist.diffFromAllTimeHigh || 0) >= 0 ? '+' : ''}${(hist.diffFromAllTimeHigh || 0).toFixed(2)}€ (${(hist.diffPctFromAllTimeHigh || 0).toFixed(1)}%)
-                            </span>
-                        </div>
-                        <div class="historic-summary-item">
-                            <span class="historic-summary-label">Crecimiento desde Origen</span>
-                            <span class="historic-summary-value" style="color:${(hist.growthFromFirstSnapshot || 0) >= 0 ? '#00D26A' : '#FF2A2A'};">
-                                ${(hist.growthFromFirstSnapshot || 0) >= 0 ? '+' : ''}${(hist.growthFromFirstSnapshot || 0).toFixed(1)}%
-                            </span>
-                        </div>
-                    </div>
+                    <!-- Indicadores Históricos Debajo del Gráfico -->
+                    ${this.renderHistoricalSummaryCardsHTML(stats.historicalSummary || {})}
                 </div>
             </div>
 
-            <!-- 🧱 4. COMPOSICIÓN & CONCENTRACIÓN DE LA COLECCIÓN -->
-            <div style="margin-bottom:12px; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                <i data-lucide="pie-chart" style="width:15px;height:15px;color:#A855F7;"></i> 4. Composición & Concentración
+            <!-- 🧩 BLOQUE 4: COMPOSICIÓN, TIENDAS & CONCENTRACIÓN -->
+            <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                🧩 4. COMPOSICIÓN — Temas, Tiendas & Concentración
             </div>
 
             <div class="bento-grid mb-4">
-                <!-- TEMAS -->
+                <!-- ANÁLISIS POR TEMAS -->
                 <div class="bento-card bento-col-6" style="display:flex; flex-direction:column;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
                         <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="blocks" style="width: 18px; height: 18px; color: #FFC700;"></i> Mis Temas
+                            <i data-lucide="blocks" style="width: 18px; height: 18px; color: #FFC700;"></i> Mis Temas LEGO®
                         </h3>
-                        <span style="font-size:0.8rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(stats.themesAnalysis || []).length} categorías</span>
+                        <span style="font-size:0.78rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(stats.themesAnalysis || []).length} temáticas</span>
                     </div>
 
-                    <div style="display:flex; flex-direction:column; gap:10px; flex:1; overflow-y:auto; max-height:340px;" class="custom-scrollbar">
-                        ${this.renderThemesListHTML(stats.themesAnalysis || [])}
+                    <!-- Botones de Ordenación de Temas -->
+                    <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px;" class="custom-scrollbar">
+                        <button class="time-range-btn theme-sort-btn ${activeThemeSort === 'value' ? 'active' : ''}" data-sort="value" onclick="StatsView.setThemeSort('value')">
+                            + Valor
+                        </button>
+                        <button class="time-range-btn theme-sort-btn ${activeThemeSort === 'invested' ? 'active' : ''}" data-sort="invested" onclick="StatsView.setThemeSort('invested')">
+                            + Inversión
+                        </button>
+                        <button class="time-range-btn theme-sort-btn ${activeThemeSort === 'profit' ? 'active' : ''}" data-sort="profit" onclick="StatsView.setThemeSort('profit')">
+                            + Profit
+                        </button>
+                        <button class="time-range-btn theme-sort-btn ${activeThemeSort === 'roi' ? 'active' : ''}" data-sort="roi" onclick="StatsView.setThemeSort('roi')">
+                            + ROI %
+                        </button>
+                        <button class="time-range-btn theme-sort-btn ${activeThemeSort === 'sets' ? 'active' : ''}" data-sort="sets" onclick="StatsView.setThemeSort('sets')">
+                            + Sets
+                        </button>
+                    </div>
+
+                    <div id="themes-list-container" style="display:flex; flex-direction:column; gap:10px; flex:1; overflow-y:auto; max-height:340px;" class="custom-scrollbar">
+                        ${this.renderThemesListHTML(stats.themesAnalysis || [], activeThemeSort)}
                     </div>
                 </div>
 
-                <!-- ADQUISICIONES -->
+                <!-- ADQUISICIONES & ORIGEN -->
                 <div class="bento-card bento-col-6" style="display:flex; flex-direction:column;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                         <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
                             <i data-lucide="gift" style="width: 18px; height: 18px; color: #00D26A;"></i> Análisis de Adquisiciones
                         </h3>
-                        <span style="font-size:0.8rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">Origen</span>
+                        <span style="font-size:0.78rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">Origen de Compra</span>
                     </div>
 
                     <div style="display:flex; flex-direction:column; gap:12px; flex:1; justify-content:center;">
@@ -322,56 +393,11 @@ const StatsView = {
                     </div>
                 </div>
 
-                <!-- CONCENTRACIÓN DEL PATRIMONIO -->
-                <div class="bento-card bento-col-6">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="pie-chart" style="width: 18px; height: 18px; color: #A855F7;"></i> Concentración del Patrimonio
-                        </h3>
-                        <span style="font-size:0.78rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">Diversificación</span>
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:12px;">
-                        <div style="background:var(--bg-surface-muted); padding:12px 14px; border-radius:10px; border:1px solid var(--border);">
-                            <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; margin-bottom:4px;">
-                                <span>Top 1 Set Más Valioso</span>
-                                <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent); font-weight:700;">
-                                    ${(conc.top1Percent || 0).toFixed(1)}% (${(conc.top1Value || 0).toFixed(2)}€)
-                                </span>
-                            </div>
-                            <div style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${conc.top1SetName}">${conc.top1SetName || 'N/A'}</div>
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                            <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
-                                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 3 Sets</div>
-                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#0075FF;">
-                                    ${(conc.top3Percent || 0).toFixed(1)}%
-                                </div>
-                                <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top3Value || 0).toFixed(2)}€</div>
-                            </div>
-                            <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
-                                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 5 Sets</div>
-                                <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#FFC700;">
-                                    ${(conc.top5Percent || 0).toFixed(1)}%
-                                </div>
-                                <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top5Value || 0).toFixed(2)}€</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- CONCENTRACIÓN DE PATRIMONIO -->
+                ${this.renderConcentrationHTML(stats.concentration || {})}
 
-                <!-- ÍNDICE DE COLECCIONISTA -->
-                <div class="bento-card bento-col-6" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; position:relative; overflow:hidden;">
-                    <div style="position:absolute; top:-20px; right:-20px; width:120px; height:120px; background:radial-gradient(circle, rgba(255,199,0,0.18) 0%, transparent 70%); border-radius:50%; pointer-events:none;"></div>
-                    <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; letter-spacing:1px; color:var(--text-muted); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                        <i data-lucide="award" style="width:16px;height:16px;color:#FFC700;"></i> Índice de Coleccionista
-                    </div>
-                    <div style="font-size:2.6rem; font-weight:800; font-family:'Space Grotesk',sans-serif; color:#FFC700; line-height:1;">
-                        ${stats.collectorIndex || 0} <span style="font-size:1.1rem; color:var(--text-muted); font-weight:500;">/ 100</span>
-                    </div>
-                    <div style="margin-top:10px; background:rgba(255,199,0,0.12); color:#FFC700; border:1px solid rgba(255,199,0,0.3); padding:4px 14px; border-radius:20px; font-weight:700; font-size:0.88rem;">
-                        🏆 ${stats.collectorRank || 'Coleccionista Promesa'}
-                    </div>
-                </div>
+                <!-- TIENDAS & LUGARES DE COMPRA CON HIGHLIGHTS -->
+                ${this.renderStoreBreakdownHTML(stats)}
 
                 <!-- GASTO Y SETS POR AÑO -->
                 <div class="bento-card bento-col-12">
@@ -380,14 +406,11 @@ const StatsView = {
                     </h3>
                     <div id="yearChart" style="width: 100%; min-height: 280px;"></div>
                 </div>
-
-                <!-- TOP TIENDAS & LUGARES DE COMPRA -->
-                ${this.renderStoreBreakdownHTML(Storage.getCollection())}
             </div>
 
-            <!-- 🏆 5. RANKINGS DE LA COLECCIÓN -->
-            <div style="margin-bottom:12px; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                <i data-lucide="trophy" style="width:15px;height:15px;color:#FFC700;"></i> 5. Rankings & Protagonistas
+            <!-- 🏆 BLOQUE 5: RANKINGS & PROTAGONISTAS -->
+            <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                🏆 5. RANKINGS — Sets Destacados & Mejores Compras
             </div>
 
             <div class="bento-grid mb-4">
@@ -400,7 +423,7 @@ const StatsView = {
 
                     <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px;" class="custom-scrollbar">
                         <button class="ranking-tab-btn ${activeTab === 'profit' ? 'active' : ''}" data-tab="profit" onclick="StatsView.setRankingTab('profit')">
-                            💰 Top Ganancia (€)
+                            💰 Top Profit (€)
                         </button>
                         <button class="ranking-tab-btn ${activeTab === 'roi' ? 'active' : ''}" data-tab="roi" onclick="StatsView.setRankingTab('roi')">
                             📈 Top ROI Inversión (%)
@@ -450,43 +473,57 @@ const StatsView = {
                 <!-- PROTAGONISTAS DE LA COLECCIÓN -->
                 ${this.renderProtagonistasHTML(stats.rankings || {})}
             </div>
-
-            <!-- 🔎 6. ANÁLISIS INDIVIDUAL DE SET -->
-            <div style="margin-bottom:12px; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                <i data-lucide="search" style="width:15px;height:15px;color:var(--accent);"></i> 6. Análisis Individual de Set
-            </div>
         `;
     },
 
-    renderSetDashboardHTML(col) {
-        const selectedId = App.profileState.selectedSetId;
-        const optionsHtml = col.map(s => `<option value="${s.set_num}" ${s.set_num === selectedId ? 'selected' : ''}>#${s.set_num.split('-')[0]} - ${s.name}</option>`).join('');
-
+    renderHistoricalSummaryCardsHTML(hist) {
         return `
-            <div class="bento-card mb-4" style="padding: 20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                    <div style="font-size:1.05rem; font-weight:700; font-family:'Space Grotesk',sans-serif; display:flex; align-items:center; gap:8px;">
-                        <i data-lucide="filter" style="width:18px;height:18px;color:var(--accent);"></i> Selecciona un Set para Análisis Histórico:
-                    </div>
-                    <select class="input-field" style="min-width: 280px; max-width: 420px; font-weight:600;" onchange="StatsView.onSelectSetForAnalysis(this.value)">
-                        ${optionsHtml}
-                    </select>
+            <div class="historic-summary-box mt-3">
+                <div class="historic-summary-item">
+                    <span class="historic-summary-label">Máximo Histórico</span>
+                    <span class="historic-summary-value" style="color:#FFC700;">${(hist.allTimeHighValue || 0).toFixed(2)}€</span>
+                </div>
+                <div class="historic-summary-item">
+                    <span class="historic-summary-label">Valor Actual</span>
+                    <span class="historic-summary-value" style="color:var(--text-primary);">${(hist.currentValue || 0).toFixed(2)}€</span>
+                </div>
+                <div class="historic-summary-item">
+                    <span class="historic-summary-label">Dif. vs Máximo</span>
+                    <span class="historic-summary-value" style="color:${(hist.diffFromAllTimeHigh || 0) >= 0 ? '#00D26A' : '#FF2A2A'};">
+                        ${(hist.diffFromAllTimeHigh || 0) >= 0 ? '+' : ''}${(hist.diffFromAllTimeHigh || 0).toFixed(2)}€ (${(hist.diffPctFromAllTimeHigh || 0).toFixed(1)}%)
+                    </span>
+                </div>
+                <div class="historic-summary-item">
+                    <span class="historic-summary-label">Crecimiento desde Origen</span>
+                    <span class="historic-summary-value" style="color:${(hist.growthFromFirstSnapshot || 0) >= 0 ? '#00D26A' : '#FF2A2A'};">
+                        ${(hist.growthFromFirstSnapshot || 0) >= 0 ? '+' : ''}${(hist.growthFromFirstSnapshot || 0).toFixed(1)}%
+                    </span>
                 </div>
             </div>
-
-            <div id="singleSetContainer">
-                <div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Cargando historial del set...</div>
-            </div>
         `;
     },
 
-    renderThemesListHTML(themes) {
+    renderThemesListHTML(themes, sortKey = 'value') {
         if (!themes || themes.length === 0) {
             return '<div class="text-muted text-center p-3">No hay datos por temática disponibles.</div>';
         }
+
+        let sorted = [...themes];
+        if (sortKey === 'value') {
+            sorted.sort((a, b) => (b.currentValueTotal || 0) - (a.currentValueTotal || 0));
+        } else if (sortKey === 'invested') {
+            sorted.sort((a, b) => (b.investedTotal || 0) - (a.investedTotal || 0));
+        } else if (sortKey === 'profit') {
+            sorted.sort((a, b) => (b.plusvalia || 0) - (a.plusvalia || 0));
+        } else if (sortKey === 'roi') {
+            sorted.sort((a, b) => (b.roiPercent || 0) - (a.roiPercent || 0));
+        } else if (sortKey === 'sets') {
+            sorted.sort((a, b) => (b.setsCount || 0) - (a.setsCount || 0));
+        }
+
         const legoColors = ['#FFC700', '#E3000B', '#0075FF', '#00D26A', '#FF6B00', '#A855F7', '#00F0FF'];
 
-        return themes.map((t, idx) => {
+        return sorted.map((t, idx) => {
             const color = legoColors[idx % legoColors.length];
             const plusvalia = t.plusvalia || 0;
             const isPos = plusvalia >= 0;
@@ -498,13 +535,13 @@ const StatsView = {
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
                             <span style="font-weight:600; font-size:0.92rem; color:var(--text-primary);">${t.themeName}</span>
-                            <span style="font-size:0.72rem; padding:1px 6px; border-radius:4px; background:rgba(255,255,255,0.06); color:var(--text-muted);">${(t.sharePercent || 0).toFixed(0)}% colección</span>
+                            <span style="font-size:0.72rem; padding:1px 6px; border-radius:4px; background:rgba(255,255,255,0.06); color:var(--text-muted);">${(t.sharePercent || 0).toFixed(1)}% patrimonio</span>
                         </div>
                         <span style="font-family:'IBM Plex Mono',monospace; font-size:0.85rem; color:var(--text-secondary);">${t.setsCount} set${t.setsCount !== 1 ? 's' : ''} (${(t.piecesCount || 0).toLocaleString('es')} pz)</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">
                         <span>Invertido: ${(t.investedTotal || 0).toFixed(2)}€ | Valor: ${(t.currentValueTotal || 0).toFixed(2)}€</span>
-                        <span style="color:${isPos ? '#00D26A' : '#FF2A2A'}; font-weight:700;">Plusvalía: ${isPos ? '+' : ''}${plusvalia.toFixed(2)}€ (${roiText})</span>
+                        <span style="color:${isPos ? '#00D26A' : '#FF2A2A'}; font-weight:700;">Profit: ${isPos ? '+' : ''}${plusvalia.toFixed(2)}€ (${roiText})</span>
                     </div>
                 </div>
             `;
@@ -540,22 +577,9 @@ const StatsView = {
         }).join('');
     },
 
-    renderStoreBreakdownHTML(collection) {
-        if (!collection || collection.length === 0) return '';
-        
-        const storeMap = {};
-        collection.forEach(item => {
-            const loc = (item.purchaseDetails && item.purchaseDetails.purchaseLocation && item.purchaseDetails.purchaseLocation.trim()) 
-                ? item.purchaseDetails.purchaseLocation.trim() 
-                : 'Sin especificar';
-            const price = item.purchaseDetails ? (item.purchaseDetails.pricePaid || 0) : 0;
-            
-            if (!storeMap[loc]) {
-                storeMap[loc] = { count: 0, totalInvested: 0 };
-            }
-            storeMap[loc].count += 1;
-            storeMap[loc].totalInvested += price;
-        });
+    renderStoreBreakdownHTML(stats) {
+        const stores = stats.storesAnalysis || [];
+        if (!stores || stores.length === 0) return '';
 
         const storeIcons = {
             'LEGO Store': './assets/stores/lego.webp',
@@ -565,38 +589,122 @@ const StatsView = {
             'Carrefour': './assets/stores/carrefour.webp'
         };
 
-        const sortedStores = Object.entries(storeMap)
-            .map(([name, data]) => ({ name, ...data }))
-            .sort((a, b) => b.totalInvested - a.totalInvested);
+        const sortedStores = [...stores].sort((a, b) => (b.investedTotal || 0) - (a.investedTotal || 0));
 
         const rowsHtml = sortedStores.map(s => {
-            const iconUrl = storeIcons[s.name];
+            const iconUrl = storeIcons[s.storeName];
             const iconHtml = iconUrl 
-                ? `<img src="${iconUrl}" alt="${s.name}" style="width:22px; height:22px; object-fit:contain; border-radius:4px; flex-shrink:0;">`
+                ? `<img src="${iconUrl}" alt="${s.storeName}" style="width:22px; height:22px; object-fit:contain; border-radius:4px; flex-shrink:0;">`
                 : `<span style="font-size:1.1rem;">🏬</span>`;
             return `
-            <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:12px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+            <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:12px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     ${iconHtml}
                     <div>
-                        <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">${s.name}</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted);">${s.count} set${s.count !== 1 ? 's' : ''}</div>
+                        <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">${s.storeName}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${s.setsCount} set${s.setsCount !== 1 ? 's' : ''} • PVP: ${(s.retailPriceTotal || 0).toFixed(2)}€</div>
                     </div>
                 </div>
-                <div style="font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1rem; color:var(--accent);">
-                    €${s.totalInvested.toFixed(2)}
+                <div style="text-align:right; font-family:'IBM Plex Mono',monospace;">
+                    <div style="font-weight:800; font-size:0.95rem; color:var(--accent);">${(s.investedTotal || 0).toFixed(2)}€ invertidos</div>
+                    <div style="font-size:0.75rem; color:#00D26A; font-weight:600;">Ahorro: +${(s.savingsTotal || 0).toFixed(2)}€ (-${(s.averageDiscountPercent || 0).toFixed(1)}%)</div>
                 </div>
             </div>
             `;
         }).join('');
 
+        let highlightsHtml = '';
+        if (stats.topSavingsStoreName || stats.topDiscountStoreName) {
+            highlightsHtml = `
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px;">
+                ${stats.topSavingsStoreName ? `
+                <div style="background:rgba(0,210,106,0.08); border:1px solid rgba(0,210,106,0.25); padding:10px 14px; border-radius:12px; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.3rem;">🏆</span>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Mayor Ahorro Acumulado</div>
+                        <div style="font-weight:700; font-size:0.92rem; color:#00D26A;">${stats.topSavingsStoreName} (+${(stats.topSavingsStoreAmount || 0).toFixed(2)}€)</div>
+                    </div>
+                </div>` : ''}
+
+                ${stats.topDiscountStoreName ? `
+                <div style="background:rgba(0,117,255,0.08); border:1px solid rgba(0,117,255,0.25); padding:10px 14px; border-radius:12px; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.3rem;">🏷️</span>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Mejor Descuento Medio</div>
+                        <div style="font-weight:700; font-size:0.92rem; color:#0075FF;">${stats.topDiscountStoreName} (-${(stats.topDiscountStorePct || 0).toFixed(1)}%)</div>
+                    </div>
+                </div>` : ''}
+            </div>`;
+        }
+
         return `
             <div class="bento-card bento-col-12" style="padding:20px;">
                 <h3 style="font-size:1.1rem; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
-                    <i data-lucide="shopping-bag" style="width:18px;height:18px;color:var(--accent);"></i> Top Tiendas & Lugares de Compra
+                    <i data-lucide="shopping-bag" style="width:18px;height:18px;color:var(--accent);"></i> Análisis por Tiendas & Lugares de Compra
                 </h3>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+                ${highlightsHtml}
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
                     ${rowsHtml}
+                </div>
+            </div>
+        `;
+    },
+
+    renderConcentrationHTML(conc) {
+        let badgeColor = '#00D26A';
+        let badgeBg = 'rgba(0,210,106,0.12)';
+        let badgeBorder = 'rgba(0,210,106,0.3)';
+        if (conc.status === 'HIGH') {
+            badgeColor = '#FF2A2A';
+            badgeBg = 'rgba(255,42,42,0.12)';
+            badgeBorder = 'rgba(255,42,42,0.3)';
+        } else if (conc.status === 'MODERATE') {
+            badgeColor = '#FFC700';
+            badgeBg = 'rgba(255,199,0,0.12)';
+            badgeBorder = 'rgba(255,199,0,0.3)';
+        }
+
+        return `
+            <div class="bento-card bento-col-6">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                    <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="pie-chart" style="width: 18px; height: 18px; color: #A855F7;"></i> Concentración del Patrimonio
+                    </h3>
+                    <span style="font-size:0.75rem; padding:3px 10px; border-radius:12px; background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-weight:700;">
+                        ${conc.statusLabel || 'Diversificada'}
+                    </span>
+                </div>
+
+                <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px; background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border); line-height:1.4;">
+                    ℹ️ ${conc.statusDescription || 'Evaluación automática del nivel de concentración patrimonial de la colección.'}
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:10px; border:1px solid var(--border);">
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; margin-bottom:4px;">
+                            <span>Top 1 Set Más Valioso</span>
+                            <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent); font-weight:700;">
+                                ${(conc.top1Percent || 0).toFixed(1)}% (${(conc.top1Value || 0).toFixed(2)}€)
+                            </span>
+                        </div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${conc.top1SetName}">${conc.top1SetName || 'N/A'}</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 3 Sets</div>
+                            <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#0075FF;">
+                                ${(conc.top3Percent || 0).toFixed(1)}%
+                            </div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top3Value || 0).toFixed(2)}€</div>
+                        </div>
+                        <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 5 Sets</div>
+                            <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#FFC700;">
+                                ${(conc.top5Percent || 0).toFixed(1)}%
+                            </div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top5Value || 0).toFixed(2)}€</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -621,9 +729,14 @@ const StatsView = {
                 const rp = item.revaluationPvpPercent || 0;
                 metricText = `<span style="color:${rp >= 0 ? '#00D26A' : '#FF2A2A'}; font-weight:700;">${rp >= 0 ? '+' : ''}${rp.toFixed(1)}%</span>`;
             } else if (type === 'discounts') {
+                const pvp = item.retailPrice || 0;
+                const paid = item.purchasePrice || 0;
                 const dAmt = item.discountAmount || 0;
                 const dPct = item.discountPercent || 0;
-                metricText = `<span style="color:#0075FF; font-weight:700;">-${dAmt.toFixed(2)}€ (${dPct.toFixed(0)}%)</span>`;
+                metricText = `
+                    <div style="font-size:0.75rem; color:var(--text-muted);">PVP: ${pvp.toFixed(2)}€ → Pagado: ${paid.toFixed(2)}€</div>
+                    <div style="color:#0075FF; font-weight:700; font-size:0.88rem;">-${dAmt.toFixed(2)}€ (-${dPct.toFixed(0)}%)</div>
+                `;
             } else if (type === 'pieces') {
                 metricText = `<span style="color:#00D26A; font-weight:700;">${(item.pieces || 0).toLocaleString('es')} pz</span>`;
             } else if (type === 'expensive') {
@@ -709,39 +822,38 @@ const StatsView = {
         `;
     },
 
+    renderSetDashboardHTML(col) {
+        const selectedId = App.profileState.selectedSetId;
+        const optionsHtml = col.map(s => `<option value="${s.set_num}" ${s.set_num === selectedId ? 'selected' : ''}>#${s.set_num.split('-')[0]} - ${s.name}</option>`).join('');
+
+        return `
+            <div class="bento-card mb-4" style="padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div style="font-size:1.05rem; font-weight:700; font-family:'Space Grotesk',sans-serif; display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="filter" style="width:18px;height:18px;color:var(--accent);"></i> Selecciona un Set para Análisis Histórico:
+                    </div>
+                    <select class="input-field" style="min-width: 280px; max-width: 420px; font-weight:600;" onchange="StatsView.onSelectSetForAnalysis(this.value)">
+                        ${optionsHtml}
+                    </select>
+                </div>
+            </div>
+
+            <div id="singleSetContainer">
+                <div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Cargando historial del set...</div>
+            </div>
+        `;
+    },
+
     initCollectionCharts(stats, historyData) {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const textColor = isDark ? '#F9F8F6' : '#1A1916';
         const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
 
-        if (App.timelineChart) { try { App.timelineChart.destroy(); } catch (e) { } App.timelineChart = null; }
         if (App.financialChart) { try { App.financialChart.destroy(); } catch (e) { } App.financialChart = null; }
         if (App.yearChart) { try { App.yearChart.destroy(); } catch (e) { } App.yearChart = null; }
 
-        // 1. Timeline Chart
-        const snapshots = historyData?.snapshots || [];
-        if (snapshots.length > 0 && document.getElementById('timelineChart')) {
-            const dates = snapshots.map(s => s.date);
-            const values = snapshots.map(s => s.totalValue || 0);
-            const plusvaliaVals = snapshots.map(s => s.plusvalia || 0);
-
-            App.timelineChart = new ApexCharts(document.getElementById('timelineChart'), {
-                series: [
-                    { name: 'Valor Colección (€)', data: values },
-                    { name: 'Plusvalía Acumulada (€)', data: plusvaliaVals }
-                ],
-                chart: { type: 'area', height: 300, background: 'transparent', fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
-                colors: ['#00D26A', '#0075FF'],
-                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 90, 100] } },
-                stroke: { curve: 'smooth', width: 3 },
-                dataLabels: { enabled: false },
-                grid: { borderColor: gridColor, strokeDashArray: 4 },
-                xaxis: { categories: dates, labels: { style: { colors: textColor, fontFamily: 'IBM Plex Mono, monospace' } } },
-                yaxis: { labels: { style: { colors: textColor, fontFamily: 'IBM Plex Mono, monospace' }, formatter: (v) => `${v.toFixed(0)}€` } },
-                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v) => `${v.toFixed(2)} €` } }
-            });
-            App.timelineChart.render();
-        }
+        // 1. Timeline Chart (Respetando Rango Temporal 1M, 3M, 6M, 1A, TODO)
+        this.renderTimelineChart(stats, historyData, App.profileState.timeRange || 'all');
 
         // 2. Financial Comparison Chart
         const finList = stats.financialComparison || [];
@@ -796,6 +908,54 @@ const StatsView = {
                 tooltip: { theme: isDark ? 'dark' : 'light' }
             });
             App.yearChart.render();
+        }
+    },
+
+    renderTimelineChart(stats, historyData, range = 'all') {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#F9F8F6' : '#1A1916';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+
+        let rawSnapshots = historyData?.snapshots || [];
+        if (rawSnapshots.length === 0) return;
+
+        let filtered = [...rawSnapshots];
+        if (range !== 'all') {
+            const now = new Date();
+            let daysToSubtract = 365;
+            if (range === '1M') daysToSubtract = 30;
+            else if (range === '3M') daysToSubtract = 90;
+            else if (range === '6M') daysToSubtract = 180;
+            else if (range === '1A') daysToSubtract = 365;
+
+            const cutoff = new Date(now.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
+            filtered = rawSnapshots.filter(s => new Date(s.date) >= cutoff);
+            if (filtered.length === 0) filtered = rawSnapshots;
+        }
+
+        const dates = filtered.map(s => s.date);
+        const values = filtered.map(s => s.totalValue || 0);
+        const investedVals = filtered.map(s => s.investedValue || 0);
+
+        if (App.timelineChart) { try { App.timelineChart.destroy(); } catch (e) { } App.timelineChart = null; }
+
+        if (document.getElementById('timelineChart')) {
+            App.timelineChart = new ApexCharts(document.getElementById('timelineChart'), {
+                series: [
+                    { name: 'Patrimonio (Valor Actual €)', data: values },
+                    { name: 'Inversión Acumulada (€)', data: investedVals }
+                ],
+                chart: { type: 'area', height: 300, background: 'transparent', fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
+                colors: ['#00D26A', '#0075FF'],
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 90, 100] } },
+                stroke: { curve: 'smooth', width: 3 },
+                dataLabels: { enabled: false },
+                grid: { borderColor: gridColor, strokeDashArray: 4 },
+                xaxis: { categories: dates, labels: { style: { colors: textColor, fontFamily: 'IBM Plex Mono, monospace' } } },
+                yaxis: { labels: { style: { colors: textColor, fontFamily: 'IBM Plex Mono, monospace' }, formatter: (v) => `${v.toFixed(0)}€` } },
+                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v) => `${v.toFixed(2)} €` } }
+            });
+            App.timelineChart.render();
         }
     },
 

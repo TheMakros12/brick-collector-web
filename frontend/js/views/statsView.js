@@ -202,15 +202,13 @@ const StatsView = {
                     <div class="kpi-subtext">Capital real desembolsado (${stats.setsCount || 0} sets)</div>
                 </div>
 
-                <div class="kpi-card" style="border-top: 4px solid ${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
+                <div class="kpi-card" style="border-top: 4px solid #A855F7;">
                     <div class="kpi-title">
-                        <span>PROFIT NETO (€)</span>
-                        ${this.renderTooltipHTML('Profit (Plusvalía): Ganancia neta real en Euros (Valor Actual - Dinero Invertido).')}
+                        <span>P.V.P. OFICIAL</span>
+                        ${this.renderTooltipHTML('Sumatorio del P.V.P. de catálogo oficial LEGO® (MSRP).')}
                     </div>
-                    <div class="kpi-value" style="color:${isPlusvaliaPos ? '#00D26A' : '#FF2A2A'};">
-                        ${isPlusvaliaPos ? '+' : ''}${(stats.plusvaliaTotal || 0).toFixed(2)}€
-                    </div>
-                    <div class="kpi-subtext">Patrimonio − Inversión</div>
+                    <div class="kpi-value" style="color:var(--text-primary);">${(stats.retailPriceTotal || 0).toFixed(2)}€</div>
+                    <div class="kpi-subtext">Sumatorio P.V.P. LEGO®</div>
                 </div>
 
                 <div class="kpi-card" style="border-top: 4px solid ${isRoiPos ? '#00D26A' : '#FF2A2A'};">

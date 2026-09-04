@@ -26,7 +26,7 @@ const SearchView = {
                 <div class="toolbar-container" style="padding: 16px;">
                     <div class="input-group" style="margin-bottom: 0; position: relative;">
                         <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; color: var(--text-muted); pointer-events: none;"></i>
-                        <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID de set y pulsa Enter para buscar detalle exacto" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)" onkeydown="SearchView.onKeyDown(event)">
+                        <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID de set (ej. 77252, 10307...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)">
                         ${App.searchState.query ? `<button style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
                     </div>
                 </div>
@@ -82,33 +82,6 @@ const SearchView = {
         this._debouncedPerformSearch();
     },
 
-    async onKeyDown(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            const query = (App.searchState.query || '').trim();
-            if (/^\d+(-1)?$/.test(query)) {
-                // Fetch exact details from backend (which calls BrickEconomy)
-                const resultsContainer = document.getElementById('search-results');
-                if (resultsContainer) {
-                    resultsContainer.innerHTML = '<div class="text-center p-5"><i data-lucide="loader" class="spin" style="width: 28px; height: 28px;"></i><div style="font-size: 0.9rem; margin-top: 8px; color: var(--text-muted);">Consultando detalles exactos del set...</div></div>';
-                    lucide.createIcons();
-                }
-                const exactSet = await API.getSetDetails(query);
-                if (exactSet) {
-                    // Update results array putting this at the top
-                    let results = App.searchState.results || [];
-                    results = [exactSet, ...results.filter(s => s.set_num !== exactSet.set_num)];
-                    App.searchState.results = results;
-                    
-                    if (resultsContainer) {
-                        resultsContainer.innerHTML = this.renderResultsHtml();
-                        lucide.createIcons();
-                    }
-                }
-            }
-        }
-    },
-
     clearSearch() {
         const input = document.getElementById('search-input');
         if (input) input.value = '';
@@ -140,6 +113,14 @@ const SearchView = {
         try {
             // Realizar búsqueda general de catálogo para obtener la lista de coincidencias
             results = await API.searchSets(query);
+
+            // Si es un número de set específico, intentar obtener además la ficha exacta y priorizarla al inicio
+            if (/^\d+(-1)?$/.test(query)) {
+                const exactSet = await API.getSetDetails(query);
+                if (exactSet) {
+                    results = [exactSet, ...results.filter(s => s.set_num !== exactSet.set_num)];
+                }
+            }
         } catch (e) {
             console.error(e);
         }

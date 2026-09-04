@@ -698,10 +698,9 @@ public class StatisticsService {
     private List<StatisticsDTO.BadgeDTO> buildBadges(int setsCount, int totalPieces, double currentValueTotal,
                                                       Map<Integer, StatisticsDTO.ThemeStatDTO> themeMap) {
         List<StatisticsDTO.BadgeDTO> badges = new ArrayList<>();
-        if (setsCount >= 1) badges.add(createBadge("star", "Coleccionista Novato"));
-        if (setsCount >= 10) badges.add(createBadge("award", "Maestro Constructor"));
-        if (totalPieces >= 5000) badges.add(createBadge("zap", "Imperio de Piezas (+5k)"));
-        if (currentValueTotal >= 1000.0) badges.add(createBadge("trending-up", "Vitrina Alta Revalorización"));
+        if (setsCount >= 10) badges.add(createBadge("package", "Colección (+10 Sets)"));
+        if (totalPieces >= 5000) badges.add(createBadge("zap", "Colección (+5k Piezas)"));
+        if (currentValueTotal >= 1000.0) badges.add(createBadge("trending-up", "Patrimonio (+1.000€)"));
 
         themeMap.values().stream()
                 .filter(t -> t.getSetsCount() >= 5)

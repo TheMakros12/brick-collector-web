@@ -115,7 +115,7 @@ const UI = {
             tempImg.onerror = () => {
                 if (!img.dataset.proxyAttempted && img.src && img.src.startsWith('http') && !img.src.includes('/api/catalog/proxy-image')) {
                     img.dataset.proxyAttempted = "true";
-                    const proxyUrl = `http://localhost:8080/api/catalog/proxy-image?url=${encodeURIComponent(img.src)}`;
+                    const proxyUrl = API.getProxyImageUrl(img.src);
                     const proxyImg = new Image();
                     proxyImg.crossOrigin = "Anonymous";
                     proxyImg.onload = () => processCanvas(proxyImg);
@@ -382,14 +382,12 @@ const UI = {
             ${purchaseHtml}
 
             <!-- 4. FULL-WIDTH PRICE HISTORY CHART CARD -->
-            ${isInCollection ? `
             <div class="modal-section mb-4" style="margin-bottom: 16px;">
                 <div class="modal-section-title"><i data-lucide="trending-up"></i> Histórico de Valor de Mercado</div>
                 <div id="set-history-chart-container" style="width: 100%;">
                     <span style="font-size: 0.85rem; color: var(--text-muted);"><i data-lucide="loader" class="spin"></i> Cargando historial...</span>
                 </div>
             </div>
-            ` : ''}
 
             <!-- 5. ACTION BUTTONS FOOTER -->
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -404,9 +402,7 @@ const UI = {
         if (document.getElementById('purchase-date')) {
             UI.initCustomDatePicker('purchase-date');
         }
-        if (isInCollection) {
-            UI.loadIndividualSetHistoryChart(set.set_num);
-        }
+        UI.loadIndividualSetHistoryChart(set.set_num);
         lucide.createIcons();
         // Add basic switch styles if not in css
         if(!document.getElementById('switch-style')) {
