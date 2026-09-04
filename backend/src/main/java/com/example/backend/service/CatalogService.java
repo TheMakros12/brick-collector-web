@@ -68,10 +68,9 @@ public class CatalogService {
 
         if (themeId != null) {
             List<Integer> themeIds = getThemeDescendants(themeId);
-            ExecutorService executor = Executors.newFixedThreadPool(Math.min(themeIds.size(), 10));
             
             List<CompletableFuture<List<LegoSetDTO>>> futures = themeIds.stream()
-                .map(tid -> CompletableFuture.supplyAsync(() -> fetchSetsFromRebrickable(query, tid, entity), executor))
+                .map(tid -> CompletableFuture.supplyAsync(() -> fetchSetsFromRebrickable(query, tid, entity), executorService))
                 .collect(Collectors.toList());
 
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -86,7 +85,6 @@ public class CatalogService {
                     System.err.println("Error reading future: " + e.getMessage());
                 }
             }
-            executor.shutdown();
         } else {
             results.addAll(fetchSetsFromRebrickable(query, null, entity));
         }

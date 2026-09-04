@@ -47,6 +47,9 @@ public class CatalogController {
     @GetMapping("/proxy-image")
     public org.springframework.http.ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
         try {
+            if (url == null || (!url.contains("rebrickable.com") && !url.contains("brickeconomy.com") && !url.contains("lego.com"))) {
+                return new org.springframework.http.ResponseEntity<>(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             byte[] imageBytes = restTemplate.getForObject(url, byte[].class);
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();

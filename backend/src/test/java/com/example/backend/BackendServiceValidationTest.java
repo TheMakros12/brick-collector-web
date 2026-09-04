@@ -201,8 +201,12 @@ public class BackendServiceValidationTest {
         colItem.setId(1L);
         colItem.setLegoSet(sampleSet1);
 
+        CatalogService.BrickEconomyDataDTO dto = new CatalogService.BrickEconomyDataDTO();
+        dto.setRetailPriceEu(199.99);
+        dto.setCurrentValueNew(250.00);
+
         when(collectionRepository.findAll()).thenReturn(List.of(colItem));
-        when(catalogService.fetchPricesFromBrickEconomy("42172-1")).thenReturn(new Double[]{199.99, 250.00});
+        when(catalogService.fetchFullBrickEconomyData("42172-1")).thenReturn(dto);
         
         PriceHistory lastHistory = new PriceHistory();
         lastHistory.setPrice(250.00);
@@ -220,8 +224,12 @@ public class BackendServiceValidationTest {
         colItem.setId(1L);
         colItem.setLegoSet(sampleSet1);
 
+        CatalogService.BrickEconomyDataDTO dto = new CatalogService.BrickEconomyDataDTO();
+        dto.setRetailPriceEu(199.99);
+        dto.setCurrentValueNew(260.00);
+
         when(collectionRepository.findAll()).thenReturn(List.of(colItem));
-        when(catalogService.fetchPricesFromBrickEconomy("42172-1")).thenReturn(new Double[]{199.99, 260.00}); // Cambio a 260
+        when(catalogService.fetchFullBrickEconomyData("42172-1")).thenReturn(dto);
         
         PriceHistory lastHistory = new PriceHistory();
         lastHistory.setPrice(250.00); // Antes era 250
