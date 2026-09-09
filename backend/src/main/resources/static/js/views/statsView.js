@@ -234,57 +234,7 @@ const StatsView = {
                 </div>
             </div>
 
-            <!-- ⚡ BLOQUE 2: EFICIENCIA & MÉTRICAS UNITARIAS -->
-            <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                ⚡ 2. EFICIENCIA — Rendimiento & Métricas Unitarias
-            </div>
 
-            <div class="kpi-5-grid" style="margin-bottom: 16px;">
-                <div class="kpi-card" style="border-top: 4px solid #0075FF;">
-                    <div class="kpi-title">
-                        <span>AHORRO ACUMULADO</span>
-                        ${this.renderTooltipHTML('Ahorro: Dinero total (€) economizado al adquirir sets por debajo de su PVP oficial o recibirlos como regalo.')}
-                    </div>
-                    <div class="kpi-value" style="color:#0075FF;">+${(stats.savingsTotal || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">PVP − Inversión real</div>
-                </div>
-
-                <div class="kpi-card" style="border-top: 4px solid #00D26A;">
-                    <div class="kpi-title">
-                        <span>DESCUENTO MEDIO %</span>
-                        ${this.renderTooltipHTML('Rebaja porcentual media conseguida en la adquisición de compras.')}
-                    </div>
-                    <div class="kpi-value" style="color:#00D26A;">-${(stats.averageDiscountPercent || 0).toFixed(1)}%</div>
-                    <div class="kpi-subtext">Rebaja media conseguida</div>
-                </div>
-
-                <div class="kpi-card" style="border-top: 4px solid #FFC700;">
-                    <div class="kpi-title">
-                        <span>VALOR POR € INVERTIDO</span>
-                        ${this.renderTooltipHTML('Valor en euros recuperado en patrimonio por cada 1 euro de inversión real.')}
-                    </div>
-                    <div class="kpi-value" style="color:#FFC700;">${(stats.valuePerEuroInvested || 0).toFixed(2)}€</div>
-                    <div class="kpi-subtext">Por cada 1€ invertido</div>
-                </div>
-
-                <div class="kpi-card" style="border-top: 4px solid #A855F7;">
-                    <div class="kpi-title">
-                        <span>COSTE POR PIEZA</span>
-                        ${this.renderTooltipHTML('Precio medio pagado por cada ladrillo individual.')}
-                    </div>
-                    <div class="kpi-value">${(stats.costPerPiece || 0).toFixed(3)}€</div>
-                    <div class="kpi-subtext">Inversión ÷ ${(stats.totalPieces || 0).toLocaleString('es')} pz</div>
-                </div>
-
-                <div class="kpi-card" style="border-top: 4px solid #00F0FF;">
-                    <div class="kpi-title">
-                        <span>VALOR POR PIEZA</span>
-                        ${this.renderTooltipHTML('Valor actual de mercado asignado a cada pieza de tu colección.')}
-                    </div>
-                    <div class="kpi-value" style="color:#00F0FF;">${(stats.valuePerPiece || 0).toFixed(3)}€</div>
-                    <div class="kpi-subtext">Patrimonio ÷ ${(stats.totalPieces || 0).toLocaleString('es')} pz</div>
-                </div>
-            </div>
 
             <!-- Micro-métricas Unitarias Banner -->
             <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; padding:12px 18px; margin-bottom:24px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items:center;">
