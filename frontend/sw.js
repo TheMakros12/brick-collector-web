@@ -1,4 +1,4 @@
-const CACHE_NAME = 'brickcollector-v36';
+const CACHE_NAME = 'brickcollector-v37';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -30,7 +30,7 @@ self.addEventListener('install', (e) => {
     );
 });
 
-// Activate Event: Cleanup Old Caches
+// Activate Event: Cleanup Old Caches Immediately
 self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then((keys) => {
@@ -45,7 +45,7 @@ self.addEventListener('activate', (e) => {
     );
 });
 
-// Fetch Event: Cache-First for static assets, Network-First for API
+// Fetch Event: Network-First for ALL requests (API & Shell) to guarantee immediate updates
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
@@ -63,18 +63,19 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Static Shell: Cache First with Stale-While-Revalidate background sync
+    // Static Shell: Network-First to guarantee latest code from server, fallback to cache if offline
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-                fetch(event.request).then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200) {
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-                    }
-                }).catch(() => {});
-                return cachedResponse;
-            }
-            return fetch(event.request);
-        })
+        fetch(event.request)
+            .then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+                    const responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+                }
+                return networkResponse;
+            })
+            .catch(async () => {
+                const cached = await caches.match(event.request);
+                return cached;
+            })
     );
 });
