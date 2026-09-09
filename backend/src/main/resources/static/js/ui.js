@@ -155,6 +155,31 @@ const UI = {
         }, 3000);
     },
 
+    // Borra las cachés de Service Worker y fuerza la recarga limpia de la PWA
+    async forceSyncPWA() {
+        try {
+            UI.showToast("Borrando caché local y actualizando PWA...", "info");
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                }
+            }
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                for (let key of keys) {
+                    await caches.delete(key);
+                }
+            }
+            setTimeout(() => {
+                window.location.href = window.location.pathname + '?v=' + Date.now();
+            }, 600);
+        } catch (e) {
+            console.error("Error al forzar sincronización PWA:", e);
+            window.location.reload();
+        }
+    },
+
     // Renders a single Lego Card HTML string
     createLegoCard(set, type) {
         const imageUrl = set.set_img_url || 'https://via.placeholder.com/150?text=No+Image';

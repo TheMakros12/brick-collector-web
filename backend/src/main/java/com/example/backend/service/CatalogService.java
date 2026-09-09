@@ -327,20 +327,29 @@ public class CatalogService {
         if (setId != null && !setId.contains("-")) {
             setId = setId + "-1";
         }
-        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + setId + "/parts/?page_size=100";
+        List<Map<String, Object>> allPieces = new ArrayList<>();
+        String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + setId + "/parts/?page_size=1000";
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "key " + rebrickableKey);
         headers.set("Accept", "application/json");
         HttpEntity<String> entity = new HttpEntity<>(headers);
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                return (List<Map<String, Object>>) response.getBody().get("results");
+            while (rebrickableUrl != null) {
+                ResponseEntity<Map> response = restTemplate.exchange(rebrickableUrl, HttpMethod.GET, entity, Map.class);
+                if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody().get("results");
+                    if (results != null) {
+                        allPieces.addAll(results);
+                    }
+                    rebrickableUrl = (String) response.getBody().get("next");
+                } else {
+                    break;
+                }
             }
         } catch (Exception e) {
             System.err.println("Error fetching set pieces: " + e.getMessage());
         }
-        return new ArrayList<>();
+        return allPieces;
     }
 
     private List<Map<String, Object>> cachedThemes = null;

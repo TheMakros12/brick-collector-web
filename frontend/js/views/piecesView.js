@@ -57,7 +57,23 @@ const PiecesView = {
                             <div id="pieces-unique-count" style="font-family:'IBM Plex Mono',monospace; font-size:1.4rem; font-weight:bold; color:var(--text-secondary); line-height:1;">—</div>
                             <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin-top:3px;">Tipos Únicos</div>
                         </div>
+                        <div style="text-align: right; background: var(--bg-surface-muted); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);">
+                            <div id="pieces-avg-cost" style="font-family:'IBM Plex Mono',monospace; font-size:1.4rem; font-weight:bold; color:#10B981; line-height:1;">—</div>
+                            <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin-top:3px;">Coste Medio</div>
+                        </div>
                     </div>
+                </div>
+
+                <!-- COLOR DISTRIBUTION BREAKDOWN -->
+                <div id="color-distribution-section" style="display:none;" class="color-distribution-container">
+                    <div class="color-distribution-header">
+                        <span style="display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="palette" style="width:16px;height:16px;color:var(--accent);"></i> Distribución Visual por Colores
+                        </span>
+                        <span id="color-distribution-total" style="font-size:0.78rem; color:var(--text-muted);"></span>
+                    </div>
+                    <div id="color-distribution-bar" class="color-distribution-bar"></div>
+                    <div id="color-distribution-legend" class="color-distribution-legend"></div>
                 </div>
 
                 <!-- FILTERS BAR -->
@@ -154,16 +170,85 @@ const PiecesView = {
 
         const totalEl = document.getElementById('pieces-total-count');
         const uniqueEl = document.getElementById('pieces-unique-count');
+        const avgCostEl = document.getElementById('pieces-avg-cost');
         const subtitleEl = document.getElementById('pieces-subtitle');
         const progressDiv = document.getElementById('pieces-progress');
 
+        const col = Storage.getCollection() || [];
+        const totalInvested = col.reduce((sum, s) => {
+            const paid = s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0);
+            return sum + (isNaN(paid) ? 0 : paid);
+        }, 0);
+
         if (totalEl) totalEl.textContent = totalQuantity.toLocaleString('es');
         if (uniqueEl) uniqueEl.textContent = pieces.length.toLocaleString('es');
-        if (subtitleEl) subtitleEl.textContent = `Inventario completo de ${Storage.getCollection().length} set${Storage.getCollection().length !== 1 ? 's' : ''}`;
+        if (avgCostEl) {
+            if (totalQuantity > 0 && totalInvested > 0) {
+                const avg = totalInvested / totalQuantity;
+                avgCostEl.textContent = `${avg.toFixed(3).replace('.', ',')} €`;
+            } else {
+                avgCostEl.textContent = '—';
+            }
+        }
+        if (subtitleEl) subtitleEl.textContent = `Inventario completo de ${col.length} set${col.length !== 1 ? 's' : ''}`;
         if (progressDiv) progressDiv.remove();
 
+        // Calculate Visual Color Distribution
+        const colorCounts = {};
+        raw.forEach(p => {
+            const colorId = p.color ? p.color.id : 0;
+            const colorName = p.color && p.color.name ? p.color.name : 'Desconocido';
+            const rgb = p.color && p.color.rgb ? p.color.rgb : '888888';
+            if (!colorCounts[colorId]) {
+                colorCounts[colorId] = { name: colorName, rgb, count: 0 };
+            }
+            colorCounts[colorId].count += p.quantity;
+        });
+
+        const sortedColors = Object.values(colorCounts).sort((a, b) => b.count - a.count);
+        const colorSection = document.getElementById('color-distribution-section');
+        const colorBar = document.getElementById('color-distribution-bar');
+        const colorLegend = document.getElementById('color-distribution-legend');
+        const colorTotalEl = document.getElementById('color-distribution-total');
+
+        if (colorSection && colorBar && colorLegend && totalQuantity > 0) {
+            colorSection.style.display = 'block';
+            if (colorTotalEl) colorTotalEl.textContent = `${sortedColors.length} colores dominantes`;
+
+            // Render Bar Segments
+            colorBar.innerHTML = sortedColors.map(c => {
+                const pct = ((c.count / totalQuantity) * 100).toFixed(1);
+                if (parseFloat(pct) < 0.1) return '';
+                return `<div class="color-distribution-segment" style="width:${pct}%; background:#${c.rgb};" title="${c.name}: ${c.count.toLocaleString('es')} pcs (${pct}%)"></div>`;
+            }).join('');
+
+            // Render Legend Chips (Top 8 + Others)
+            const topColors = sortedColors.slice(0, 8);
+            const otherColors = sortedColors.slice(8);
+            const otherCount = otherColors.reduce((sum, c) => sum + c.count, 0);
+
+            let legendHTML = topColors.map(c => {
+                const pct = ((c.count / totalQuantity) * 100).toFixed(1);
+                return `
+                    <div class="color-legend-chip">
+                        <span class="color-legend-dot" style="background:#${c.rgb};"></span>
+                        <span><strong>${c.name}:</strong> ${pct}% <span style="opacity:0.75;">(${c.count.toLocaleString('es')} pcs)</span></span>
+                    </div>`;
+            }).join('');
+
+            if (otherCount > 0) {
+                const otherPct = ((otherCount / totalQuantity) * 100).toFixed(1);
+                legendHTML += `
+                    <div class="color-legend-chip">
+                        <span class="color-legend-dot" style="background:#888888;"></span>
+                        <span><strong>Otros (${otherColors.length}):</strong> ${otherPct}% <span style="opacity:0.75;">(${otherCount.toLocaleString('es')} pcs)</span></span>
+                    </div>`;
+            }
+
+            colorLegend.innerHTML = legendHTML;
+        }
+
         const uniqueColors = [...new Set(pieces.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
-        const col = Storage.getCollection();
         const uniqueSets = col.map(s => ({ num: s.set_num, name: s.name }));
 
         const colorSelect = document.getElementById('filter-color');
