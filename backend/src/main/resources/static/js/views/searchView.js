@@ -1,6 +1,4 @@
 const SearchView = {
-    _debouncedPerformSearch: null,
-
     async render(container) {
         container.innerHTML = `
             <div class="view-container">
@@ -13,10 +11,10 @@ const SearchView = {
                         <div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700;">Buscar Set LEGO®</h2>
-                                <span class="page-header-badge" style="color:#0072FF; background:rgba(0,114,255,0.1); border-color:rgba(0,114,255,0.2);">⚡ Tiempo Real</span>
+                                <span class="page-header-badge" style="color:#0072FF; background:rgba(0,114,255,0.1); border-color:rgba(0,114,255,0.2);">🎯 Búsqueda por ID</span>
                             </div>
                             <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 2px;">
-                                Escribe el número o ID de set para ver la lista de coincidencias en tiempo real
+                                Escribe el ID exacto del set y pulsa Enter o Buscar para obtener su ficha oficial
                             </div>
                         </div>
                     </div>
@@ -27,7 +25,7 @@ const SearchView = {
                     <form onsubmit="event.preventDefault(); SearchView.performSearch();" style="display: flex; gap: 10px; width: 100%;">
                         <div class="input-group" style="margin-bottom: 0; position: relative; flex: 1;">
                             <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; color: var(--text-muted); pointer-events: none;"></i>
-                            <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID o nombre del set (ej. 77252, 10307...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); SearchView.performSearch();}">
+                            <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID del set (ej. 42172, 10307, 75375...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); SearchView.performSearch();}">
                             ${App.searchState.query ? `<button type="button" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
                         </div>
                         <button type="submit" class="btn btn-primary" style="height: 52px; border-radius: 14px; padding: 0 24px; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
@@ -36,7 +34,7 @@ const SearchView = {
                     </form>
                 </div>
 
-                <!-- Real-Time Live Results -->
+                <!-- Search Results Area -->
                 <div id="search-results" class="mt-4">
                     ${this.renderResultsHtml()}
                 </div>
@@ -49,14 +47,15 @@ const SearchView = {
     renderResultsHtml() {
         const query = (App.searchState.query || '').trim();
         const results = App.searchState.results || [];
+        const hasSearched = App.searchState.hasSearched || false;
 
-        if (!query) {
+        if (!hasSearched || !query) {
             return `
                 <div class="text-center text-muted p-5" style="background: var(--bg-surface); border-radius: 16px; border: 1px dashed var(--border); margin-top: 20px;">
                     <i data-lucide="search-code" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; color: var(--accent);"></i>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Búsqueda por Coincidencias de ID</h3>
-                    <p style="font-size: 0.88rem; max-width: 320px; margin: 0 auto; color: var(--text-secondary);">
-                        Conforme escribes números en la casilla, aparecerá la lista con todas las opciones coincidentes.
+                    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Consulta Directa por ID de Set</h3>
+                    <p style="font-size: 0.88rem; max-width: 380px; margin: 0 auto; color: var(--text-secondary);">
+                        Escribe el número/ID del set de LEGO® (ej. 42172, 10307, 75375) y pulsa <strong>Enter</strong> o el botón <strong>Buscar</strong>.
                     </p>
                 </div>
             `;
@@ -64,19 +63,17 @@ const SearchView = {
 
         if (results.length === 0) {
             return `
-                <div class="text-center text-muted p-5" style="background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--border);">
-                    <i data-lucide="search-x" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4;"></i>
-                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">No se encontraron coincidencias</h3>
-                    <p style="font-size: 0.85rem; margin-top: 4px;">Revisa el número introducido "${query}" e inténtalo de nuevo.</p>
+                <div class="text-center text-muted p-5" style="background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--border); margin-top: 20px;">
+                    <i data-lucide="alert-circle" style="width: 48px; height: 48px; margin-bottom: 12px; color: #FF2A2A; opacity: 0.8;"></i>
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: #FF2A2A; margin-bottom: 6px;">ID de set incorrecto o no encontrado</h3>
+                    <p style="font-size: 0.88rem; max-width: 420px; margin: 0 auto; color: var(--text-secondary);">
+                        No se ha encontrado ningún set de LEGO® con el ID "<strong>${query}</strong>". Por favor, verifica el número e inténtalo de nuevo.
+                    </p>
                 </div>
             `;
         }
 
-        let html = results.map(s => UI.createLegoCard(s, 'search')).join('');
-        if (results.length >= 30) {
-            html += '<button class="btn btn-outline w-full mt-4" onclick="SearchView.loadMoreResults()" id="load-more-btn">Cargar Más Resultados</button>';
-        }
-        return html;
+        return results.map(s => UI.createLegoCard(s, 'search')).join('');
     },
 
     onInputChange(val) {
@@ -88,6 +85,7 @@ const SearchView = {
         if (input) input.value = '';
         App.searchState.query = '';
         App.searchState.results = [];
+        App.searchState.hasSearched = false;
         const resultsContainer = document.getElementById('search-results');
         if (resultsContainer) {
             resultsContainer.innerHTML = this.renderResultsHtml();
@@ -102,53 +100,43 @@ const SearchView = {
 
         if (!query) {
             App.searchState.results = [];
+            App.searchState.hasSearched = false;
             resultsContainer.innerHTML = this.renderResultsHtml();
             lucide.createIcons();
             return;
         }
 
-        resultsContainer.innerHTML = '<div class="text-center p-5"><i data-lucide="loader" class="spin" style="width: 28px; height: 28px;"></i><div style="font-size: 0.9rem; margin-top: 8px; color: var(--text-muted);">Buscando coincidencias...</div></div>';
+        resultsContainer.innerHTML = `<div class="text-center p-5"><i data-lucide="loader" class="spin" style="width: 28px; height: 28px; color: var(--accent);"></i><div style="font-size: 0.9rem; margin-top: 8px; color: var(--text-muted);">Consultando ficha oficial del set ${query}...</div></div>`;
         lucide.createIcons();
 
-        let results = [];
+        let exactSet = null;
         try {
-            // Realizar búsqueda general de catálogo para obtener la lista de coincidencias
-            results = await API.searchSets(query);
+            // 1. Consulta directa por ID de set a Rebrickable/Backend
+            exactSet = await API.getSetDetails(query);
 
-            // Si es un número de set específico, intentar obtener además la ficha exacta y priorizarla al inicio
-            if (/^\d+(-1)?$/.test(query)) {
-                const exactSet = await API.getSetDetails(query);
-                if (exactSet) {
-                    results = [exactSet, ...results.filter(s => s.set_num !== exactSet.set_num)];
+            // 2. Si no responde por id directo y no contenia guion, probar añadiendo -1
+            if (!exactSet && !query.includes('-')) {
+                exactSet = await API.getSetDetails(query + '-1');
+            }
+
+            // 3. Si tampoco responde directo, buscar en catalogo general y filtrar EXCLUSIVAMENTE coincidencia exacta de ID
+            if (!exactSet) {
+                const searchResults = await API.searchSets(query);
+                if (searchResults && searchResults.length > 0) {
+                    const cleanQ = query.replace('-1', '').trim().toLowerCase();
+                    exactSet = searchResults.find(s => {
+                        const sid = (s.set_num || s.setId || '').replace('-1', '').trim().toLowerCase();
+                        return sid === cleanQ;
+                    });
                 }
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error buscando el set por ID:", e);
         }
 
-        App.searchState.results = results;
+        App.searchState.hasSearched = true;
+        App.searchState.results = exactSet ? [exactSet] : [];
         resultsContainer.innerHTML = this.renderResultsHtml();
         lucide.createIcons();
-    },
-
-    async loadMoreResults() {
-        const btn = document.getElementById('load-more-btn');
-        if (btn) {
-            btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Cargando...';
-            lucide.createIcons();
-        }
-
-        App.searchState.page = (App.searchState.page || 1) + 1;
-        const newResults = await API.searchSets(App.searchState.query, null, App.searchState.page);
-
-        if (newResults && newResults.length > 0) {
-            App.searchState.results = [...App.searchState.results, ...newResults];
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = this.renderResultsHtml();
-            lucide.createIcons();
-        } else {
-            if (btn) btn.remove();
-            UI.showToast("No hay más resultados", "info");
-        }
     }
 };
