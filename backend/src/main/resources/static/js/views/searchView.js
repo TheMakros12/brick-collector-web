@@ -24,11 +24,16 @@ const SearchView = {
 
                 <!-- Main Direct Search Bar -->
                 <div class="toolbar-container" style="padding: 16px;">
-                    <div class="input-group" style="margin-bottom: 0; position: relative;">
-                        <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; color: var(--text-muted); pointer-events: none;"></i>
-                        <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID de set (ej. 77252, 10307...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)">
-                        ${App.searchState.query ? `<button style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
-                    </div>
+                    <form onsubmit="event.preventDefault(); SearchView.performSearch();" style="display: flex; gap: 10px; width: 100%;">
+                        <div class="input-group" style="margin-bottom: 0; position: relative; flex: 1;">
+                            <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; color: var(--text-muted); pointer-events: none;"></i>
+                            <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID o nombre del set (ej. 77252, 10307...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); SearchView.performSearch();}">
+                            ${App.searchState.query ? `<button type="button" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height: 52px; border-radius: 14px; padding: 0 24px; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="search" style="width: 18px; height: 18px;"></i> Buscar
+                        </button>
+                    </form>
                 </div>
 
                 <!-- Real-Time Live Results -->
@@ -76,10 +81,6 @@ const SearchView = {
 
     onInputChange(val) {
         App.searchState.query = val;
-        if (!this._debouncedPerformSearch) {
-            this._debouncedPerformSearch = UI.debounce(() => this.performSearch(), 300);
-        }
-        this._debouncedPerformSearch();
     },
 
     clearSearch() {
