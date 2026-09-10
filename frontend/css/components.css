@@ -1063,13 +1063,14 @@ table img {
     position: relative;
     box-shadow: var(--shadow-sm);
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s, border-color 0.25s;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .bento-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
     border-color: var(--border-strong);
+    z-index: 10;
 }
 
 .bento-card-hero {
@@ -1307,13 +1308,15 @@ table img {
     box-shadow: var(--shadow-sm);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
-.kpi-card:hover {
+.kpi-card:hover,
+.kpi-card:focus-within {
     transform: translateY(-3px);
     box-shadow: var(--shadow-md);
     border-color: var(--border-strong);
+    z-index: 20;
 }
 
 .kpi-title {
@@ -1706,48 +1709,66 @@ table img {
     display: inline-flex;
     align-items: center;
     cursor: help;
+    z-index: 50;
+}
+
+.info-tooltip-wrap:hover {
+    z-index: 3000;
 }
 
 .info-tooltip-wrap .info-tooltip-icon {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     color: var(--text-muted);
     transition: color 0.2s ease, transform 0.2s ease;
-    opacity: 0.7;
+    opacity: 0.75;
 }
 
 .info-tooltip-wrap:hover .info-tooltip-icon {
     color: var(--accent);
     opacity: 1;
-    transform: scale(1.15);
+    transform: scale(1.2);
 }
 
 .info-tooltip-wrap .info-tooltip-box {
     visibility: hidden;
     opacity: 0;
-    width: 250px;
+    width: 240px;
+    max-width: calc(100vw - 36px);
     background: var(--bg-surface);
     color: var(--text-primary);
     text-align: left;
     border-radius: 12px;
     padding: 10px 14px;
     position: absolute;
-    z-index: 1000;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
+    z-index: 3000;
+    bottom: calc(100% + 10px);
+    right: -8px;
+    transform: translateY(6px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--border-strong);
     font-size: 0.78rem;
-    font-weight: 400;
+    font-weight: 500;
     line-height: 1.4;
-    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s ease;
     pointer-events: none;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.info-tooltip-wrap .info-tooltip-box::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 10px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: var(--bg-surface) transparent transparent transparent;
 }
 
 .info-tooltip-wrap:hover .info-tooltip-box {
     visibility: visible;
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
 }
 
 /* Time Range Filter Buttons */
