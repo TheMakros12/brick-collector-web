@@ -237,7 +237,7 @@ const StatsView = {
 
 
             <!-- Micro-métricas Unitarias Banner -->
-            <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; padding:12px 18px; margin-bottom:24px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items:center;">
+            <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; padding:12px 18px; margin-bottom:24px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:center;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <div style="width:32px; height:32px; border-radius:8px; background:rgba(0,117,255,0.1); color:#0075FF; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🏷️</div>
                     <div>
@@ -259,11 +259,18 @@ const StatsView = {
                         <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#FFC700;">+${(stats.averageSavingsPerSet || 0).toFixed(2)}€</div>
                     </div>
                 </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(168,85,247,0.1); color:#A855F7; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🧩</div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Piezas Medias / Set</div>
+                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#A855F7;">${stats.setsCount > 0 ? Math.round((stats.totalPieces || 0) / stats.setsCount).toLocaleString('es') : 0} pz</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- 📈 BLOQUE 3: EVOLUCIÓN HISTÓRICA DEL PATRIMONIO -->
+            <!-- 📈 BLOQUE 2: EVOLUCIÓN HISTÓRICA DEL PATRIMONIO -->
             <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                📈 3. EVOLUCIÓN — Histórico de Patrimonio & Tendencia
+                📈 2. EVOLUCIÓN — Histórico de Patrimonio & Tendencia
             </div>
 
             <div class="bento-grid mb-4">
@@ -290,9 +297,9 @@ const StatsView = {
                 </div>
             </div>
 
-            <!-- 🧩 BLOQUE 4: COMPOSICIÓN, TIENDAS & CONCENTRACIÓN -->
+            <!-- 🧩 BLOQUE 3: COMPOSICIÓN, TIENDAS & CONCENTRACIÓN -->
             <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                🧩 4. COMPOSICIÓN — Temas, Tiendas & Concentración
+                🧩 3. COMPOSICIÓN — Temas, Tiendas & Concentración
             </div>
 
             <div class="bento-grid mb-4">
@@ -358,9 +365,9 @@ const StatsView = {
                 </div>
             </div>
 
-            <!-- 🏆 BLOQUE 5: RANKINGS & PROTAGONISTAS -->
+            <!-- 🏆 BLOQUE 4: RANKINGS & PROTAGONISTAS -->
             <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                🏆 5. RANKINGS — Sets Destacados & Mejores Compras
+                🏆 4. RANKINGS — Sets Destacados & Mejores Compras
             </div>
 
             <div class="bento-grid mb-4">
@@ -773,18 +780,47 @@ const StatsView = {
     },
 
     renderSetDashboardHTML(col) {
-        const selectedId = App.profileState.selectedSetId;
-        const optionsHtml = col.map(s => `<option value="${s.set_num}" ${s.set_num === selectedId ? 'selected' : ''}>#${s.set_num.split('-')[0]} - ${s.name}</option>`).join('');
+        if (!col || col.length === 0) {
+            return '<div class="bento-card text-center p-4 text-muted">Añade sets a tu colección para analizarlos individualmente.</div>';
+        }
+
+        let selectedSetObj = col.find(s => s.set_num === App.profileState.selectedSetId);
+        if (!selectedSetObj) {
+            selectedSetObj = col[0];
+            App.profileState.selectedSetId = selectedSetObj.set_num;
+        }
+
+        const selectedNumShort = selectedSetObj.set_num.split('-')[0];
+        const displayLabel = `#${selectedNumShort} - ${selectedSetObj.name}`;
 
         return `
-            <div class="bento-card mb-4" style="padding: 20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div class="bento-card mb-4" style="padding: 20px; overflow: visible;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
                     <div style="font-size:1.05rem; font-weight:700; font-family:'Space Grotesk',sans-serif; display:flex; align-items:center; gap:8px;">
-                        <i data-lucide="filter" style="width:18px;height:18px;color:var(--accent);"></i> Selecciona un Set para Análisis Histórico:
+                        <i data-lucide="search" style="width:18px;height:18px;color:var(--accent);"></i> Selecciona un Set para Análisis Histórico:
                     </div>
-                    <select class="input-field" style="min-width: 280px; max-width: 420px; font-weight:600;" onchange="StatsView.onSelectSetForAnalysis(this.value)">
-                        ${optionsHtml}
-                    </select>
+
+                    <!-- Searchable Set Combobox -->
+                    <div style="position:relative; flex:1; min-width:280px; max-width:440px;" id="stats-set-picker-wrap">
+                        <div style="position:relative; display:flex; align-items:center;">
+                            <i data-lucide="search" style="position:absolute; left:12px; width:16px; height:16px; color:var(--text-muted); pointer-events:none;"></i>
+                            <input type="text" 
+                                id="stats-set-search-input" 
+                                class="input-field" 
+                                style="padding-left:36px; padding-right:32px; width:100%; font-weight:600;" 
+                                placeholder="🔍 Buscar por #ID o nombre..." 
+                                value="${displayLabel.replace(/"/g, '&quot;')}"
+                                onfocus="StatsView.openSetPickerDropdown()" 
+                                oninput="StatsView.filterSetPickerDropdown(this.value)"
+                                autocomplete="off" />
+                            <i data-lucide="chevron-down" style="position:absolute; right:12px; width:16px; height:16px; color:var(--text-muted); pointer-events:none;"></i>
+                        </div>
+
+                        <!-- Floating Results Dropdown -->
+                        <div id="stats-set-dropdown-menu" class="custom-scrollbar" style="display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:290px; overflow-y:auto; background:var(--bg-surface); border:1px solid var(--border-strong); border-radius:14px; box-shadow:0 12px 32px rgba(0,0,0,0.25); z-index:3000; padding:6px;">
+                            ${this.renderSetPickerItemsHTML(col, '')}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -792,6 +828,78 @@ const StatsView = {
                 <div class="text-center p-4"><i data-lucide="loader" class="spin"></i> Cargando historial del set...</div>
             </div>
         `;
+    },
+
+    renderSetPickerItemsHTML(col, filterQuery = '') {
+        const q = (filterQuery || '').toLowerCase().trim();
+        const filtered = col.filter(s => {
+            const setNum = (s.set_num || '').toLowerCase();
+            const name = (s.name || '').toLowerCase();
+            const theme = (s.theme_name || '').toLowerCase();
+            return !q || setNum.includes(q) || name.includes(q) || theme.includes(q);
+        });
+
+        if (filtered.length === 0) {
+            return '<div style="padding:14px; text-align:center; color:var(--text-muted); font-size:0.85rem;">No se encontraron sets coincidentes</div>';
+        }
+
+        const selectedId = App.profileState.selectedSetId;
+
+        return filtered.map(s => {
+            const isSel = s.set_num === selectedId;
+            const setNumShort = s.set_num.split('-')[0];
+            const img = s.set_img_url || 'https://via.placeholder.com/60?text=?';
+
+            return `
+            <div class="stats-set-option-item ${isSel ? 'selected' : ''}" 
+                 onclick="StatsView.selectSetFromPicker('${s.set_num}', '#${setNumShort} - ${s.name.replace(/'/g, "\\'")}')"
+                 style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; transition:background 0.15s ease; ${isSel ? 'background:var(--accent-bg); border:1px solid rgba(227,0,11,0.2);' : ''}">
+                <img src="${img}" onload="UI.removeWhiteBackground(this)" style="width:32px; height:32px; object-fit:contain; border-radius:4px; flex-shrink:0; background:var(--bg-surface-muted);">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.name}</div>
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--text-muted);">#${setNumShort} ${s.theme_name ? '• ' + s.theme_name : ''}</div>
+                </div>
+                ${isSel ? '<i data-lucide="check" style="width:16px; height:16px; color:var(--accent); flex-shrink:0;"></i>' : ''}
+            </div>
+            `;
+        }).join('');
+    },
+
+    openSetPickerDropdown() {
+        const menu = document.getElementById('stats-set-dropdown-menu');
+        if (menu) {
+            menu.style.display = 'block';
+            lucide.createIcons();
+        }
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                const wrap = document.getElementById('stats-set-picker-wrap');
+                if (wrap && !wrap.contains(e.target)) {
+                    if (menu) menu.style.display = 'none';
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 50);
+    },
+
+    filterSetPickerDropdown(val) {
+        const menu = document.getElementById('stats-set-dropdown-menu');
+        if (menu) {
+            menu.style.display = 'block';
+            const col = Storage.getCollection() || [];
+            menu.innerHTML = this.renderSetPickerItemsHTML(col, val);
+            lucide.createIcons();
+        }
+    },
+
+    selectSetFromPicker(setNum, labelText) {
+        App.profileState.selectedSetId = setNum;
+        const input = document.getElementById('stats-set-search-input');
+        if (input) input.value = labelText;
+        const menu = document.getElementById('stats-set-dropdown-menu');
+        if (menu) menu.style.display = 'none';
+        this.initSetCharts();
     },
 
     initCollectionCharts(stats, historyData) {
