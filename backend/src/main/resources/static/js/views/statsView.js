@@ -297,9 +297,9 @@ const StatsView = {
                 </div>
             </div>
 
-            <!-- 🧩 BLOQUE 3: COMPOSICIÓN, TIENDAS & CONCENTRACIÓN -->
+            <!-- 🧩 BLOQUE 3: COMPOSICIÓN, TIENDAS & ORIGEN -->
             <div style="margin-bottom:12px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                🧩 3. COMPOSICIÓN — Temas, Tiendas & Concentración
+                🧩 3. COMPOSICIÓN — Temas, Tiendas & Orígenes
             </div>
 
             <div class="bento-grid mb-4">
@@ -349,9 +349,6 @@ const StatsView = {
                         ${this.renderAcquisitionsListHTML(stats.acquisitionsAnalysis || [])}
                     </div>
                 </div>
-
-                <!-- CONCENTRACIÓN DE PATRIMONIO -->
-                ${this.renderConcentrationHTML(stats.concentration || {})}
 
                 <!-- TIENDAS & LUGARES DE COMPRA CON HIGHLIGHTS -->
                 ${this.renderStoreBreakdownHTML(stats)}
@@ -602,66 +599,6 @@ const StatsView = {
                 ${highlightsHtml}
                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
                     ${rowsHtml}
-                </div>
-            </div>
-        `;
-    },
-
-    renderConcentrationHTML(conc) {
-        let badgeColor = '#00D26A';
-        let badgeBg = 'rgba(0,210,106,0.12)';
-        let badgeBorder = 'rgba(0,210,106,0.3)';
-        if (conc.status === 'HIGH') {
-            badgeColor = '#FF2A2A';
-            badgeBg = 'rgba(255,42,42,0.12)';
-            badgeBorder = 'rgba(255,42,42,0.3)';
-        } else if (conc.status === 'MODERATE') {
-            badgeColor = '#FFC700';
-            badgeBg = 'rgba(255,199,0,0.12)';
-            badgeBorder = 'rgba(255,199,0,0.3)';
-        }
-
-        return `
-            <div class="bento-card bento-col-6">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                    <h3 style="font-size: 1.1rem; font-family:'Space Grotesk',sans-serif; display: flex; align-items: center; gap: 8px;">
-                        <i data-lucide="pie-chart" style="width: 18px; height: 18px; color: #A855F7;"></i> Concentración del Patrimonio
-                    </h3>
-                    <span style="font-size:0.75rem; padding:3px 10px; border-radius:12px; background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-weight:700;">
-                        ${conc.statusLabel || 'Diversificada'}
-                    </span>
-                </div>
-
-                <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px; background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border); line-height:1.4;">
-                    ℹ️ ${conc.statusDescription || 'Evaluación automática del nivel de concentración patrimonial de la colección.'}
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <div style="background:var(--bg-surface-muted); padding:10px 14px; border-radius:10px; border:1px solid var(--border);">
-                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; margin-bottom:4px;">
-                            <span>Top 1 Set Más Valioso</span>
-                            <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent); font-weight:700;">
-                                ${(conc.top1Percent || 0).toFixed(1)}% (${(conc.top1Value || 0).toFixed(2)}€)
-                            </span>
-                        </div>
-                        <div style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${conc.top1SetName}">${conc.top1SetName || 'N/A'}</div>
-                    </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 3 Sets</div>
-                            <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#0075FF;">
-                                ${(conc.top3Percent || 0).toFixed(1)}%
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top3Value || 0).toFixed(2)}€</div>
-                        </div>
-                        <div style="background:var(--bg-surface-muted); padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:2px;">Top 5 Sets</div>
-                            <div style="font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:700; color:#FFC700;">
-                                ${(conc.top5Percent || 0).toFixed(1)}%
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;">${(conc.top5Value || 0).toFixed(2)}€</div>
-                        </div>
-                    </div>
                 </div>
             </div>
         `;
