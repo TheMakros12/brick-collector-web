@@ -862,6 +862,4 @@ var UI = window.UI = Object.assign(window.UI || {}, {
             timeout = setTimeout(later, wait);
         };
     }
-};
-
-window.UI = UI;
+});
