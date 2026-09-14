@@ -400,19 +400,27 @@ const CollectionView = {
             const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
             const pdfFile = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
 
+            let shared = false;
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                await navigator.share({
-                    files: [pdfFile],
-                    title: isCol ? 'Mi Colección LEGO' : 'Mi Lista de Deseos LEGO',
-                    text: isCol ? 'Te comparto mi informe de Colección LEGO® en PDF.' : 'Te comparto mi Lista de Deseos LEGO® en PDF.'
-                });
-                UI.showToast("PDF enviado con éxito.", "success");
-            } else {
+                try {
+                    await navigator.share({
+                        files: [pdfFile],
+                        title: isCol ? 'Mi Colección LEGO' : 'Mi Lista de Deseos LEGO',
+                        text: isCol ? 'Te comparto mi informe de Colección LEGO® en PDF.' : 'Te comparto mi Lista de Deseos LEGO® en PDF.'
+                    });
+                    shared = true;
+                    UI.showToast("PDF compartido con éxito.", "success");
+                } catch (shareErr) {
+                    console.warn("navigator.share no disponible o gesto caducado, guardando archivo directamente:", shareErr);
+                }
+            }
+
+            if (!shared) {
                 await html2pdf().set(opt).from(container).save();
-                UI.showToast("PDF generado con éxito.", "success");
+                UI.showToast("PDF generado y descargado con éxito.", "success");
             }
         } catch (e) {
-            console.error("Error generating/sharing PDF", e);
+            console.error("Error generating PDF", e);
             UI.showToast("Error al procesar el PDF.", "error");
         }
     }
