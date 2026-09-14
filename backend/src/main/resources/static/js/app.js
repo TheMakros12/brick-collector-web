@@ -18,6 +18,7 @@ const App = {
         allPieces: null,
         colorFilter: 'all',
         setFilter: 'all',
+        spareFilter: 'all',
         sortBy: 'quantity',
         loading: false
     },

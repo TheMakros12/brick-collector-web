@@ -323,9 +323,14 @@ public class CatalogService {
             new IllegalArgumentException("El tema " + themeId + " no existe en Rebrickable y no se puede guardar."));
     }
 
+    private final Map<String, List<Map<String, Object>>> piecesCache = new java.util.concurrent.ConcurrentHashMap<>();
+
     public List<Map<String, Object>> getSetPieces(String setId) {
         if (setId != null && !setId.contains("-")) {
             setId = setId + "-1";
+        }
+        if (piecesCache.containsKey(setId)) {
+            return piecesCache.get(setId);
         }
         List<Map<String, Object>> allPieces = new ArrayList<>();
         String rebrickableUrl = "https://rebrickable.com/api/v3/lego/sets/" + setId + "/parts/?page_size=1000";
@@ -346,10 +351,31 @@ public class CatalogService {
                     break;
                 }
             }
+            if (!allPieces.isEmpty()) {
+                piecesCache.put(setId, allPieces);
+            }
         } catch (Exception e) {
             System.err.println("Error fetching set pieces: " + e.getMessage());
         }
         return allPieces;
+    }
+
+    public int getBuildingPiecesCount(String setId) {
+        List<Map<String, Object>> pieces = getSetPieces(setId);
+        if (pieces == null || pieces.isEmpty()) {
+            return 0;
+        }
+        int buildingPieces = 0;
+        for (Map<String, Object> piece : pieces) {
+            Boolean isSpare = (Boolean) piece.get("is_spare");
+            if (Boolean.FALSE.equals(isSpare) || isSpare == null) {
+                Number qty = (Number) piece.get("quantity");
+                if (qty != null) {
+                    buildingPieces += qty.intValue();
+                }
+            }
+        }
+        return buildingPieces;
     }
 
     private List<Map<String, Object>> cachedThemes = null;

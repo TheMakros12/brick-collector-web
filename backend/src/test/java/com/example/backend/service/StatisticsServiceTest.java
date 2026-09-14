@@ -30,6 +30,9 @@ class StatisticsServiceTest {
     @Mock
     private PriceHistoryRepository priceHistoryRepository;
 
+    @Mock
+    private CatalogService catalogService;
+
     @InjectMocks
     private StatisticsService statisticsService;
 

@@ -23,13 +23,16 @@ public class StatisticsService {
     private final CollectionRepository collectionRepository;
     private final WishlistRepository wishlistRepository;
     private final PriceHistoryRepository priceHistoryRepository;
+    private final CatalogService catalogService;
 
     public StatisticsService(CollectionRepository collectionRepository,
                              WishlistRepository wishlistRepository,
-                             PriceHistoryRepository priceHistoryRepository) {
+                             PriceHistoryRepository priceHistoryRepository,
+                             CatalogService catalogService) {
         this.collectionRepository = collectionRepository;
         this.wishlistRepository = wishlistRepository;
         this.priceHistoryRepository = priceHistoryRepository;
+        this.catalogService = catalogService;
     }
 
     public StatisticsDTO getStatistics() {
@@ -65,7 +68,11 @@ public class StatisticsService {
 
             double purchasePrice = item.getPurchasePrice() != null ? item.getPurchasePrice() : 0.0;
             double retailPrice = set.getRetailPrice() != null ? set.getRetailPrice() : 0.0;
-            int pieces = set.getPieces() != null ? set.getPieces() : 0;
+            
+            // Calculate building pieces (excluding spares if available)
+            int buildingPieces = catalogService != null ? catalogService.getBuildingPiecesCount(set.getId()) : 0;
+            int pieces = buildingPieces > 0 ? buildingPieces : (set.getPieces() != null ? set.getPieces() : 0);
+            
             int year = set.getReleaseDate() != null ? set.getReleaseDate().getYear() : 0;
 
             investedTotal += purchasePrice;

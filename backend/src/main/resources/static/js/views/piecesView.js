@@ -82,6 +82,11 @@ const PiecesView = {
                         <select id="filter-set" class="input-field" style="flex:1; min-width:160px;" onchange="PiecesView.applyMyPiecesFilters()">
                             <option value="all">Todos los sets</option>
                         </select>
+                        <select id="filter-spare" class="input-field" style="flex:1; min-width:160px;" onchange="PiecesView.applyMyPiecesFilters()">
+                            <option value="all">Todas las piezas (Montaje + Repuesto)</option>
+                            <option value="building">Piezas de Montaje (Oficiales)</option>
+                            <option value="spare">Piezas de Repuesto (Extras)</option>
+                        </select>
                         <select id="filter-color" class="input-field" style="flex:1; min-width:160px;" onchange="PiecesView.applyMyPiecesFilters()">
                             <option value="all">Todos los colores</option>
                         </select>
@@ -150,35 +155,104 @@ const PiecesView = {
     _renderPiecesGrid() {
         const raw = App.myPiecesState.allPieces || [];
 
-        const pieceMap = {};
-        raw.forEach(p => {
-            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
-            if (!pieceMap[key]) {
-                pieceMap[key] = {
-                    part: p.part,
-                    color: p.color,
-                    quantity: 0,
-                    sets: new Set()
-                };
-            }
-            pieceMap[key].quantity += p.quantity;
-            pieceMap[key].sets.add(p._setNum);
+        const col = Storage.getCollection() || [];
+        const progressDiv = document.getElementById('pieces-progress');
+        if (progressDiv) progressDiv.remove();
+
+        const uniqueColors = [...new Set(raw.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
+        const uniqueSets = col.map(s => ({ num: s.set_num, name: s.name }));
+
+        const colorSelect = document.getElementById('filter-color');
+        const setSelect = document.getElementById('filter-set');
+        const spareSelect = document.getElementById('filter-spare');
+        const sortSelect = document.getElementById('filter-sort');
+        const filtersBar = document.getElementById('pieces-filters');
+
+        if (colorSelect) {
+            const savedColor = App.myPiecesState.colorFilter;
+            colorSelect.innerHTML = `<option value="all">Todos los colores</option>` +
+                uniqueColors.map(c => `<option value="${c}" ${savedColor === c ? 'selected' : ''}>${c}</option>`).join('');
+        }
+        if (setSelect) {
+            const savedSet = App.myPiecesState.setFilter;
+            setSelect.innerHTML = `<option value="all">Todos los sets</option>` +
+                uniqueSets.map(s => `<option value="${s.num}" ${savedSet === s.num ? 'selected' : ''}>${s.name}</option>`).join('');
+        }
+        if (spareSelect) {
+            spareSelect.value = App.myPiecesState.spareFilter || 'all';
+        }
+        if (sortSelect) sortSelect.value = App.myPiecesState.sortBy || 'quantity';
+
+        if (filtersBar) {
+            filtersBar.style.opacity = '1';
+            filtersBar.style.pointerEvents = 'auto';
+        }
+
+        this.applyMyPiecesFilters();
+    },
+
+    applyMyPiecesFilters() {
+        const raw = App.myPiecesState.allPieces || [];
+
+        const colorSelect = document.getElementById('filter-color');
+        const setSelect = document.getElementById('filter-set');
+        const spareSelect = document.getElementById('filter-spare');
+        const sortSelect = document.getElementById('filter-sort');
+
+        const colorFilter = colorSelect ? colorSelect.value : 'all';
+        const setFilter = setSelect ? setSelect.value : 'all';
+        const spareFilter = spareSelect ? spareSelect.value : 'all';
+        const sortBy = sortSelect ? sortSelect.value : 'quantity';
+
+        App.myPiecesState.colorFilter = colorFilter;
+        App.myPiecesState.setFilter = setFilter;
+        App.myPiecesState.spareFilter = spareFilter;
+        App.myPiecesState.sortBy = sortBy;
+
+        // Filter raw array by set & spare filter first (for stats & grid)
+        const filteredRaw = raw.filter(p => {
+            if (setFilter !== 'all' && p._setNum !== setFilter) return false;
+            if (spareFilter === 'building' && p.is_spare === true) return false;
+            if (spareFilter === 'spare' && p.is_spare !== true) return false;
+            return true;
         });
 
-        let pieces = Object.values(pieceMap);
-        const totalQuantity = pieces.reduce((s, p) => s + p.quantity, 0);
+        // Compute KPIs for filteredRaw
+        const totalQuantity = filteredRaw.reduce((sum, p) => sum + p.quantity, 0);
 
         const totalEl = document.getElementById('pieces-total-count');
         const uniqueEl = document.getElementById('pieces-unique-count');
         const avgCostEl = document.getElementById('pieces-avg-cost');
         const subtitleEl = document.getElementById('pieces-subtitle');
-        const progressDiv = document.getElementById('pieces-progress');
 
         const col = Storage.getCollection() || [];
         const totalInvested = col.reduce((sum, s) => {
+            if (setFilter !== 'all' && s.set_num !== setFilter) return sum;
             const paid = s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0);
             return sum + (isNaN(paid) ? 0 : paid);
         }, 0);
+
+        // Group into pieceMap for grid and unique count calculation
+        const pieceMap = {};
+        filteredRaw.forEach(p => {
+            const colorName = p.color && p.color.name ? p.color.name : 'Unknown';
+            if (colorFilter !== 'all' && colorName !== colorFilter) return;
+
+            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
+            if (!pieceMap[key]) {
+                pieceMap[key] = {
+                    part: p.part,
+                    color: p.color,
+                    colorName,
+                    quantity: 0,
+                    isSpare: p.is_spare === true
+                };
+            }
+            pieceMap[key].quantity += p.quantity;
+            if (p.is_spare === true) pieceMap[key].isSpare = true;
+        });
+
+        let pieces = Object.values(pieceMap);
 
         if (totalEl) totalEl.textContent = totalQuantity.toLocaleString('es');
         if (uniqueEl) uniqueEl.textContent = pieces.length.toLocaleString('es');
@@ -190,12 +264,16 @@ const PiecesView = {
                 avgCostEl.textContent = '—';
             }
         }
-        if (subtitleEl) subtitleEl.textContent = `Inventario completo de ${col.length} set${col.length !== 1 ? 's' : ''}`;
-        if (progressDiv) progressDiv.remove();
 
-        // Calculate Visual Color Distribution
+        let labelSuffix = '';
+        if (spareFilter === 'building') labelSuffix = ' (Solo piezas de montaje)';
+        else if (spareFilter === 'spare') labelSuffix = ' (Solo repuestos/extras)';
+
+        if (subtitleEl) subtitleEl.textContent = `Inventario ${setFilter !== 'all' ? 'del set seleccionado' : 'completo'} (${col.length} set${col.length !== 1 ? 's' : ''})${labelSuffix}`;
+
+        // Calculate Visual Color Distribution for filteredRaw
         const colorCounts = {};
-        raw.forEach(p => {
+        filteredRaw.forEach(p => {
             const colorId = p.color ? p.color.id : 0;
             const colorName = p.color && p.color.name ? p.color.name : 'Desconocido';
             const rgb = p.color && p.color.rgb ? p.color.rgb : '888888';
@@ -211,101 +289,48 @@ const PiecesView = {
         const colorLegend = document.getElementById('color-distribution-legend');
         const colorTotalEl = document.getElementById('color-distribution-total');
 
-        if (colorSection && colorBar && colorLegend && totalQuantity > 0) {
-            colorSection.style.display = 'block';
-            if (colorTotalEl) colorTotalEl.textContent = `${sortedColors.length} colores dominantes`;
+        if (colorSection && colorBar && colorLegend) {
+            if (totalQuantity > 0 && sortedColors.length > 0) {
+                colorSection.style.display = 'block';
+                if (colorTotalEl) colorTotalEl.textContent = `${sortedColors.length} colores dominantes`;
 
-            // Render Bar Segments
-            colorBar.innerHTML = sortedColors.map(c => {
-                const pct = ((c.count / totalQuantity) * 100).toFixed(1);
-                if (parseFloat(pct) < 0.1) return '';
-                return `<div class="color-distribution-segment" style="width:${pct}%; background:#${c.rgb};" title="${c.name}: ${c.count.toLocaleString('es')} pcs (${pct}%)"></div>`;
-            }).join('');
+                // Render Bar Segments
+                colorBar.innerHTML = sortedColors.map(c => {
+                    const pct = ((c.count / totalQuantity) * 100).toFixed(1);
+                    if (parseFloat(pct) < 0.1) return '';
+                    return `<div class="color-distribution-segment" style="width:${pct}%; background:#${c.rgb};" title="${c.name}: ${c.count.toLocaleString('es')} pcs (${pct}%)"></div>`;
+                }).join('');
 
-            // Render Legend Chips (Top 8 + Others)
-            const topColors = sortedColors.slice(0, 8);
-            const otherColors = sortedColors.slice(8);
-            const otherCount = otherColors.reduce((sum, c) => sum + c.count, 0);
+                // Render Legend Chips (Top 8 + Others)
+                const topColors = sortedColors.slice(0, 8);
+                const otherColors = sortedColors.slice(8);
+                const otherCount = otherColors.reduce((sum, c) => sum + c.count, 0);
 
-            let legendHTML = topColors.map(c => {
-                const pct = ((c.count / totalQuantity) * 100).toFixed(1);
-                return `
-                    <div class="color-legend-chip">
-                        <span class="color-legend-dot" style="background:#${c.rgb};"></span>
-                        <span><strong>${c.name}:</strong> ${pct}% <span style="opacity:0.75;">(${c.count.toLocaleString('es')} pcs)</span></span>
-                    </div>`;
-            }).join('');
+                let legendHTML = topColors.map(c => {
+                    const pct = ((c.count / totalQuantity) * 100).toFixed(1);
+                    return `
+                        <div class="color-legend-chip">
+                            <span class="color-legend-dot" style="background:#${c.rgb};"></span>
+                            <span><strong>${c.name}:</strong> ${pct}% <span style="opacity:0.75;">(${c.count.toLocaleString('es')} pcs)</span></span>
+                        </div>`;
+                }).join('');
 
-            if (otherCount > 0) {
-                const otherPct = ((otherCount / totalQuantity) * 100).toFixed(1);
-                legendHTML += `
-                    <div class="color-legend-chip">
-                        <span class="color-legend-dot" style="background:#888888;"></span>
-                        <span><strong>Otros (${otherColors.length}):</strong> ${otherPct}% <span style="opacity:0.75;">(${otherCount.toLocaleString('es')} pcs)</span></span>
-                    </div>`;
+                if (otherCount > 0) {
+                    const otherPct = ((otherCount / totalQuantity) * 100).toFixed(1);
+                    legendHTML += `
+                        <div class="color-legend-chip">
+                            <span class="color-legend-dot" style="background:#888888;"></span>
+                            <span><strong>Otros (${otherColors.length}):</strong> ${otherPct}% <span style="opacity:0.75;">(${otherCount.toLocaleString('es')} pcs)</span></span>
+                        </div>`;
+                }
+
+                colorLegend.innerHTML = legendHTML;
+            } else {
+                colorSection.style.display = 'none';
             }
-
-            colorLegend.innerHTML = legendHTML;
         }
 
-        const uniqueColors = [...new Set(pieces.map(p => p.color && p.color.name ? p.color.name : 'Unknown'))].sort();
-        const uniqueSets = col.map(s => ({ num: s.set_num, name: s.name }));
-
-        const colorSelect = document.getElementById('filter-color');
-        const setSelect = document.getElementById('filter-set');
-        const filtersBar = document.getElementById('pieces-filters');
-
-        if (colorSelect) {
-            const savedColor = App.myPiecesState.colorFilter;
-            colorSelect.innerHTML = `<option value="all">Todos los colores</option>` +
-                uniqueColors.map(c => `<option value="${c}" ${savedColor === c ? 'selected' : ''}>${c}</option>`).join('');
-        }
-        if (setSelect) {
-            const savedSet = App.myPiecesState.setFilter;
-            setSelect.innerHTML = `<option value="all">Todos los sets</option>` +
-                uniqueSets.map(s => `<option value="${s.num}" ${savedSet === s.num ? 'selected' : ''}>${s.name}</option>`).join('');
-        }
-        const sortSelect = document.getElementById('filter-sort');
-        if (sortSelect) sortSelect.value = App.myPiecesState.sortBy;
-
-        if (filtersBar) {
-            filtersBar.style.opacity = '1';
-            filtersBar.style.pointerEvents = 'auto';
-        }
-
-        this.applyMyPiecesFilters();
-    },
-
-    applyMyPiecesFilters() {
-        const raw = App.myPiecesState.allPieces || [];
-
-        const colorSelect = document.getElementById('filter-color');
-        const setSelect = document.getElementById('filter-set');
-        const sortSelect = document.getElementById('filter-sort');
-
-        const colorFilter = colorSelect ? colorSelect.value : 'all';
-        const setFilter = setSelect ? setSelect.value : 'all';
-        const sortBy = sortSelect ? sortSelect.value : 'quantity';
-
-        App.myPiecesState.colorFilter = colorFilter;
-        App.myPiecesState.setFilter = setFilter;
-        App.myPiecesState.sortBy = sortBy;
-
-        const pieceMap = {};
-        raw.forEach(p => {
-            const colorName = p.color && p.color.name ? p.color.name : 'Unknown';
-            if (setFilter !== 'all' && p._setNum !== setFilter) return;
-            if (colorFilter !== 'all' && colorName !== colorFilter) return;
-
-            const key = `${p.part.part_num}__${p.color ? p.color.id : 0}`;
-            if (!pieceMap[key]) {
-                pieceMap[key] = { part: p.part, color: p.color, colorName, quantity: 0 };
-            }
-            pieceMap[key].quantity += p.quantity;
-        });
-
-        let pieces = Object.values(pieceMap);
-
+        // Sorting
         if (sortBy === 'quantity') pieces.sort((a, b) => b.quantity - a.quantity);
         else if (sortBy === 'quantity_asc') pieces.sort((a, b) => a.quantity - b.quantity);
         else if (sortBy === 'name') pieces.sort((a, b) => a.part.name.localeCompare(b.part.name));
@@ -326,8 +351,12 @@ const PiecesView = {
             const colorDot = colorHex
                 ? `<span class="piece-color-dot" style="background:${colorHex};"></span>`
                 : '';
+            const spareBadge = (p.isSpare && spareFilter === 'all')
+                ? `<span class="my-piece-spare-badge" title="Pieza de repuesto / extra">Repuesto</span>`
+                : '';
             return `
             <div class="my-piece-card" title="${p.part.name}">
+                ${spareBadge}
                 <div class="my-piece-img-wrap">
                     <img src="${img}" alt="${p.part.name}" loading="lazy" onload="UI.removeWhiteBackground(this)">
                 </div>
@@ -343,6 +372,7 @@ const PiecesView = {
         App.myPiecesState.allPieces = null;
         App.myPiecesState.colorFilter = 'all';
         App.myPiecesState.setFilter = 'all';
+        App.myPiecesState.spareFilter = 'all';
         this.render(document.getElementById('main-content'));
     }
 };

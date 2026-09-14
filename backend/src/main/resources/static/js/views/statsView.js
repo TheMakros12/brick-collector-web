@@ -237,7 +237,21 @@ const StatsView = {
 
 
             <!-- Micro-métricas Unitarias Banner -->
-            <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; padding:12px 18px; margin-bottom:24px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:center;">
+            <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; padding:12px 18px; margin-bottom:24px; display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(227,0,11,0.1); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:1.1rem;">📦</div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Total Sets</div>
+                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:var(--text-primary);">${stats.setsCount || 0}</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(168,85,247,0.1); color:#A855F7; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🧩</div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Total Piezas</div>
+                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#A855F7;">${(stats.totalPieces || 0).toLocaleString('es')}</div>
+                    </div>
+                </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <div style="width:32px; height:32px; border-radius:8px; background:rgba(0,117,255,0.1); color:#0075FF; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🏷️</div>
                     <div>
@@ -257,13 +271,6 @@ const StatsView = {
                     <div>
                         <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Ahorro Medio / Set</div>
                         <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#FFC700;">+${(stats.averageSavingsPerSet || 0).toFixed(2)}€</div>
-                    </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div style="width:32px; height:32px; border-radius:8px; background:rgba(168,85,247,0.1); color:#A855F7; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🧩</div>
-                    <div>
-                        <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Piezas Medias / Set</div>
-                        <div style="font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.95rem; color:#A855F7;">${stats.setsCount > 0 ? Math.round((stats.totalPieces || 0) / stats.setsCount).toLocaleString('es') : 0} pz</div>
                     </div>
                 </div>
             </div>
