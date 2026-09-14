@@ -358,7 +358,7 @@ const PiecesView = {
             <div class="my-piece-card" title="${p.part.name}">
                 ${spareBadge}
                 <div class="my-piece-img-wrap">
-                    <img src="${img}" alt="${p.part.name}" loading="lazy" onload="window.removeWhiteBackground(this)">
+                    <img src="${img}" alt="${p.part.name}" loading="lazy" onload="window.UI?.removeWhiteBackground ? window.UI.removeWhiteBackground(this) : null">
                 </div>
                 <div class="my-piece-qty">${p.quantity}x</div>
                 <div class="my-piece-color">${colorDot}<span>${p.colorName}</span></div>

@@ -252,14 +252,18 @@ const CollectionView = {
         const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
 
         const container = document.createElement('div');
+        container.id = "pdf-export-container";
         container.style.width = "650px";
         container.style.padding = "24px 24px";
         container.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
         container.style.backgroundColor = "#FFFFFF";
         container.style.color = "#111827";
-        container.style.position = "absolute";
-        container.style.left = "-9999px";
+        container.style.position = "fixed";
+        container.style.left = "0px";
         container.style.top = "0px";
+        container.style.zIndex = "-9999";
+        container.style.opacity = "1";
+        container.style.pointerEvents = "none";
         container.style.boxSizing = "border-box";
         document.body.appendChild(container);
 
@@ -405,28 +409,31 @@ const CollectionView = {
         try {
             const imgs = Array.from(container.querySelectorAll('img'));
             await Promise.all(imgs.map(img => {
-                if (img.complete) return Promise.resolve();
+                if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
                 return new Promise(resolve => {
                     img.onload = resolve;
                     img.onerror = resolve;
+                    setTimeout(resolve, 3000);
                 });
             }));
 
-            const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
-            const pdfFile = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
-
             let shared = false;
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            if (navigator.share && navigator.canShare) {
                 try {
-                    await navigator.share({
-                        files: [pdfFile],
-                        title: isCol ? 'Mi Colección LEGO' : 'Mi Lista de Deseos LEGO',
-                        text: isCol ? 'Te comparto mi informe de Colección LEGO® en PDF.' : 'Te comparto mi Lista de Deseos LEGO® en PDF.'
-                    });
-                    shared = true;
-                    UI.showToast("PDF compartido con éxito.", "success");
+                    const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
+                    const pdfFile = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+
+                    if (navigator.canShare({ files: [pdfFile] })) {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: isCol ? 'Mi Colección LEGO' : 'Mi Lista de Deseos LEGO',
+                            text: isCol ? 'Te comparto mi informe de Colección LEGO® en PDF.' : 'Te comparto mi Lista de Deseos LEGO® en PDF.'
+                        });
+                        shared = true;
+                        UI.showToast("PDF compartido con éxito.", "success");
+                    }
                 } catch (shareErr) {
-                    console.warn("navigator.share cancelado o no disponible, descargando archivo directamente:", shareErr);
+                    console.log("Manejando descarga directa de PDF...");
                 }
             }
 
@@ -435,10 +442,10 @@ const CollectionView = {
                 UI.showToast("PDF generado y descargado con éxito.", "success");
             }
         } catch (e) {
-            console.error("Error generating PDF", e);
+            console.error("Error generando PDF:", e);
             UI.showToast("Error al procesar el PDF.", "error");
         } finally {
-            if (container.parentNode) {
+            if (container && container.parentNode) {
                 container.parentNode.removeChild(container);
             }
         }
