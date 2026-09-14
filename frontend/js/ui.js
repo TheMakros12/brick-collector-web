@@ -1,4 +1,4 @@
-const UI = {
+var UI = window.UI = Object.assign(window.UI || {}, {
     // Recorte automático de fondo blanco mediante Flood-Fill de Canvas.
     // Genera una silueta PNG con fondo 100% transparente sin alterar los colores reales de la foto.
     removeWhiteBackground(img) {
@@ -236,7 +236,7 @@ const UI = {
         return `
             <div class="set-card" data-id="${set.set_num}">
                 <div class="set-image-container" onclick="App.openSetDetails('${set.set_num}')">
-                    <img src="${imageUrl}" alt="${set.name}" loading="lazy" onload="UI.removeWhiteBackground(this)">
+                    <img src="${imageUrl}" alt="${set.name}" loading="lazy" onload="window.removeWhiteBackground(this)">
                     ${retirementBadge}
                 </div>
                 <div class="set-info">
@@ -371,7 +371,7 @@ const UI = {
                     ${set.retired ? `<span style="background: #EF4444; color: #FFF; font-weight: 700; font-size: 0.78rem; padding: 3px 10px; border-radius: 20px;">🔒 Descatalogado (EOL)</span>` : `<span style="background: #10B981; color: #FFF; font-weight: 700; font-size: 0.78rem; padding: 3px 10px; border-radius: 20px;">🛒 En Catálogo</span>`}
                 </div>
 
-                <img src="${imageUrl}" alt="${set.name}" onload="UI.removeWhiteBackground(this)" style="max-width: 100%; max-height: 220px; object-fit: contain; margin-top: 15px; margin-bottom: 15px;">
+                <img src="${imageUrl}" alt="${set.name}" onload="window.removeWhiteBackground(this)" style="max-width: 100%; max-height: 220px; object-fit: contain; margin-top: 15px; margin-bottom: 15px;">
                 
                 <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 6px;">${set.name}</h2>
                 <div style="font-size: 0.88rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
@@ -464,7 +464,7 @@ const UI = {
             
             return `
                 <div class="piece-card" data-color="${colorName.replace(/"/g, '&quot;')}" style="background: var(--bg-surface-muted); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; gap: 8px;">
-                    <img src="${img}" alt="${p.part.name}" loading="lazy" onload="UI.removeWhiteBackground(this)" style="width: 75px; height: 75px; object-fit: contain;">
+                    <img src="${img}" alt="${p.part.name}" loading="lazy" onload="window.removeWhiteBackground(this)" style="width: 75px; height: 75px; object-fit: contain;">
                     <div style="width: 100%;">
                         <div style="font-size: 1rem; color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-weight: bold;">${p.quantity}x</div>
                         <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 3px;">${colorName}</div>

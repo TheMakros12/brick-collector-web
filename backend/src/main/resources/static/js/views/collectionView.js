@@ -252,58 +252,63 @@ const CollectionView = {
         const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
 
         const container = document.createElement('div');
-        container.style.width = "790px";
-        container.style.padding = "32px";
+        container.style.width = "650px";
+        container.style.padding = "24px 24px";
         container.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
         container.style.backgroundColor = "#FFFFFF";
         container.style.color = "#111827";
-        container.style.position = "relative";
+        container.style.position = "absolute";
+        container.style.left = "-9999px";
+        container.style.top = "0px";
         container.style.boxSizing = "border-box";
+        document.body.appendChild(container);
+
+        const logoUrl = window.location.origin + '/Lego.webp';
 
         const headerHtml = `
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E5E7EB; padding-bottom: 16px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E5E7EB; padding-bottom: 16px; margin-bottom: 20px; width: 100%; box-sizing: border-box;">
                 <div style="display: flex; align-items: center; gap: 14px;">
-                    <div style="background: #E3000B; color: white; font-family: 'Space Grotesk', Arial, sans-serif; font-weight: 900; font-style: italic; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; padding: 4px 10px; border: 2px solid #000000; border-radius: 4px; font-size: 20px; letter-spacing: 0.5px;">LEGO</div>
+                    <img src="${logoUrl}" alt="LEGO Logo" crossorigin="anonymous" style="width: 46px; height: 46px; border-radius: 10px; object-fit: contain; flex-shrink: 0; box-shadow: 0 3px 8px rgba(227,0,11,0.2);">
                     <div>
-                        <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px;">
+                        <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.4px;">
                             ${isCol ? 'INFORME DE COLECCIÓN LEGO®' : 'MI LISTA DE DESEOS LEGO®'}
                         </h1>
-                        <div style="font-size: 12px; color: #6B7280; margin-top: 2px;">
-                            ${isCol ? 'Inventario Consolidado de Piezas y Sets' : 'Lista de regalos y sets deseados'}
+                        <div style="font-size: 11.5px; color: #6B7280; margin-top: 2px;">
+                            ${isCol ? 'Inventario Consolidado de Piezas y Sets' : 'Ideas de Regalo y Sets Deseados'}
                         </div>
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #9CA3AF; letter-spacing: 0.8px;">FECHA DE EMISIÓN</div>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <div style="font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.8px;">FECHA DE EMISIÓN</div>
                     <div style="font-size: 12px; font-weight: 700; color: #111827; margin-top: 2px;">${dateString}</div>
                 </div>
             </div>
         `;
 
         const kpisHtml = isCol ? `
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px;">
-                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 16px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; width: 100%; box-sizing: border-box;">
+                <div style="flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 12px 14px; box-sizing: border-box;">
                     <div style="font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">TOTAL SETS</div>
-                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 800; color: #E3000B; margin-top: 4px;">${items.length}</div>
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 800; color: #E3000B; margin-top: 2px;">${items.length}</div>
                 </div>
-                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 16px;">
+                <div style="flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 12px 14px; box-sizing: border-box;">
                     <div style="font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">PIEZAS TOTALES</div>
-                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 800; color: #111827; margin-top: 4px;">${totalPieces.toLocaleString('es')}</div>
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 800; color: #111827; margin-top: 2px;">${totalPieces.toLocaleString('es')}</div>
                 </div>
-                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 16px;">
-                    <div style="font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">VALOR ESTIMADO / P.V.P.</div>
-                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 800; color: #10B981; margin-top: 4px;">${totalValue.toFixed(2).replace('.', ',')} €</div>
+                <div style="flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 12px 14px; box-sizing: border-box;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">VALOR ESTIMADO / P.V.P.</div>
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 800; color: #10B981; margin-top: 2px;">${totalValue.toFixed(2).replace('.', ',')} €</div>
                 </div>
             </div>
         ` : `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 24px;">
-                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 16px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; width: 100%; box-sizing: border-box;">
+                <div style="flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 12px 14px; box-sizing: border-box;">
                     <div style="font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">SETS DESEADOS</div>
-                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 800; color: #E3000B; margin-top: 4px;">${items.length} set${items.length !== 1 ? 's' : ''}</div>
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 800; color: #E3000B; margin-top: 2px;">${items.length} set${items.length !== 1 ? 's' : ''}</div>
                 </div>
-                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 16px;">
+                <div style="flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 12px 14px; box-sizing: border-box;">
                     <div style="font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">P.V.P. TOTAL ESTIMADO</div>
-                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 800; color: #10B981; margin-top: 4px;">${totalValue.toFixed(2).replace('.', ',')} €</div>
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 800; color: #10B981; margin-top: 2px;">${totalValue.toFixed(2).replace('.', ',')} €</div>
                 </div>
             </div>
         `;
@@ -315,28 +320,28 @@ const CollectionView = {
 
             if (isCol) {
                 return `
-                <div style="display: flex; align-items: center; padding: 12px 16px; margin-bottom: 10px; border: 1px solid #E5E7EB; border-radius: 12px; background: #FFFFFF; page-break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                    <div style="width: 76px; height: 76px; flex-shrink: 0; background: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 6px; margin-right: 18px;">
+                <div style="display: flex; align-items: center; padding: 16px 20px; margin-bottom: 12px; border: 1px solid #E5E7EB; border-radius: 14px; background: #FFFFFF; page-break-inside: avoid; box-shadow: 0 2px 5px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
+                    <div style="width: 90px; height: 90px; flex-shrink: 0; background: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 8px; margin-right: 18px; box-sizing: border-box;">
                         <img src="${proxyImg}" crossorigin="anonymous" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                     </div>
                     <div style="flex: 1; min-width: 0; margin-right: 16px;">
-                        <div style="display: inline-block; background: #F3F4F6; color: #374151; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; margin-bottom: 4px;">
+                        <div style="display: inline-block; background: #F3F4F6; color: #374151; font-family: 'Space Grotesk', sans-serif; font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; margin-bottom: 6px;">
                             #${setIdShort}
                         </div>
-                        <div style="font-size: 15px; font-weight: 700; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <div style="font-size: 16px; font-weight: 700; color: #111827; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             ${i.name}
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 24px; flex-shrink: 0; text-align: right;">
+                    <div style="display: flex; align-items: center; gap: 20px; flex-shrink: 0; text-align: right;">
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase;">PIEZAS</div>
-                            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 700; color: #374151; margin-top: 2px;">
+                            <div style="font-size: 9.5px; font-weight: 700; color: #9CA3AF; text-transform: uppercase;">PIEZAS</div>
+                            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; font-weight: 700; color: #374151; margin-top: 2px;">
                                 ${(i.num_parts || 0).toLocaleString('es')} pcs
                             </div>
                         </div>
                         <div>
-                            <div style="font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase;">PRECIO / PVP</div>
-                            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 800; color: #10B981; margin-top: 2px;">
+                            <div style="font-size: 9.5px; font-weight: 700; color: #9CA3AF; text-transform: uppercase;">PRECIO / PVP</div>
+                            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 800; color: #10B981; margin-top: 2px;">
                                 ${priceVal} €
                             </div>
                         </div>
@@ -344,21 +349,21 @@ const CollectionView = {
                 </div>`;
             } else {
                 return `
-                <div style="display: flex; align-items: center; padding: 12px 16px; margin-bottom: 10px; border: 1px solid #E5E7EB; border-radius: 12px; background: #FFFFFF; page-break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                    <div style="width: 76px; height: 76px; flex-shrink: 0; background: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 6px; margin-right: 18px;">
+                <div style="display: flex; align-items: center; padding: 16px 20px; margin-bottom: 12px; border: 1px solid #E5E7EB; border-radius: 14px; background: #FFFFFF; page-break-inside: avoid; box-shadow: 0 2px 5px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
+                    <div style="width: 90px; height: 90px; flex-shrink: 0; background: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 8px; margin-right: 18px; box-sizing: border-box;">
                         <img src="${proxyImg}" crossorigin="anonymous" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                     </div>
                     <div style="flex: 1; min-width: 0; margin-right: 16px;">
-                        <div style="display: inline-block; background: #FEE2E2; color: #E3000B; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; margin-bottom: 4px;">
+                        <div style="display: inline-block; background: #FEE2E2; color: #E3000B; font-family: 'Space Grotesk', sans-serif; font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; margin-bottom: 6px;">
                             #${setIdShort}
                         </div>
-                        <div style="font-size: 15px; font-weight: 700; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <div style="font-size: 16px; font-weight: 700; color: #111827; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             ${i.name}
                         </div>
                     </div>
-                    <div style="flex-shrink: 0; text-align: right; background: #F0FDF4; border: 1px solid #DCFCE7; padding: 6px 14px; border-radius: 8px;">
-                        <div style="font-size: 10px; font-weight: 700; color: #166534; text-transform: uppercase;">P.V.P. RECOMENDADO</div>
-                        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; color: #15803D; margin-top: 1px;">
+                    <div style="flex-shrink: 0; text-align: right; background: #F0FDF4; border: 1px solid #DCFCE7; padding: 8px 16px; border-radius: 10px;">
+                        <div style="font-size: 9.5px; font-weight: 700; color: #166534; text-transform: uppercase;">P.V.P. RECOMENDADO</div>
+                        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 800; color: #15803D; margin-top: 1px;">
                             ${priceVal} €
                         </div>
                     </div>
@@ -367,7 +372,7 @@ const CollectionView = {
         }).join('');
 
         const footerHtml = `
-            <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #9CA3AF;">
+            <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #9CA3AF; width: 100%; box-sizing: border-box;">
                 <div>Brick Collector Web — ${isCol ? 'Informe de Inventario de Colección' : 'Lista de Deseos Compartida'}</div>
                 <div>Generado automáticamente</div>
             </div>
@@ -376,7 +381,7 @@ const CollectionView = {
         container.innerHTML = `
             ${headerHtml}
             ${kpisHtml}
-            <div style="display: flex; flex-direction: column;">
+            <div style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
                 ${itemsHtml}
             </div>
             ${footerHtml}
@@ -387,16 +392,26 @@ const CollectionView = {
             filename: isCol ? 'Lego_Collection_Report.pdf' : 'Lego_Wishlist_Report.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: {
-                scale: 3,
+                scale: 2,
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#FFFFFF',
-                logging: false
+                logging: false,
+                windowWidth: 800
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
         try {
+            const imgs = Array.from(container.querySelectorAll('img'));
+            await Promise.all(imgs.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
+            }));
+
             const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
             const pdfFile = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
 
@@ -411,7 +426,7 @@ const CollectionView = {
                     shared = true;
                     UI.showToast("PDF compartido con éxito.", "success");
                 } catch (shareErr) {
-                    console.warn("navigator.share no disponible o gesto caducado, guardando archivo directamente:", shareErr);
+                    console.warn("navigator.share cancelado o no disponible, descargando archivo directamente:", shareErr);
                 }
             }
 
@@ -422,6 +437,10 @@ const CollectionView = {
         } catch (e) {
             console.error("Error generating PDF", e);
             UI.showToast("Error al procesar el PDF.", "error");
+        } finally {
+            if (container.parentNode) {
+                container.parentNode.removeChild(container);
+            }
         }
     }
 };

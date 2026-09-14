@@ -649,7 +649,7 @@ const StatsView = {
                     <td style="padding:10px 8px; border-bottom:1px solid var(--border); text-align:center; font-weight:700; color:var(--text-secondary); width:32px;">${idx + 1}</td>
                     <td style="padding:10px 8px; border-bottom:1px solid var(--border);">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <img src="${item.setImgUrl}" onload="UI.removeWhiteBackground(this)" style="width:34px; height:34px; object-fit:contain; border-radius:4px; flex-shrink:0;">
+                            <img src="${item.setImgUrl}" onload="window.removeWhiteBackground(this)" style="width:34px; height:34px; object-fit:contain; border-radius:4px; flex-shrink:0;">
                             <div>
                                 <span style="font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:var(--text-muted);">#${setIdShort}</span>
                                 <div style="font-weight:600; color:var(--text-primary); font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px;" title="${item.name}">${item.name}</div>
@@ -688,7 +688,7 @@ const StatsView = {
             return `
                 <div class="featured-set-card" onclick="App.openSetDetails('${setStat.setId}')">
                     <div class="featured-set-img-wrap">
-                        <img src="${setStat.setImgUrl}" alt="${setStat.name}" onload="UI.removeWhiteBackground(this)">
+                        <img src="${setStat.setImgUrl}" alt="${setStat.name}" onload="window.removeWhiteBackground(this)">
                     </div>
                     <div style="padding: 14px;">
                         <div style="display:inline-block; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); color: ${color}; font-size: 0.72rem; font-weight: 700; letter-spacing:0.5px; margin-bottom: 8px; border:1px solid rgba(255,255,255,0.1);">
@@ -798,7 +798,7 @@ const StatsView = {
             <div class="stats-set-option-item ${isSel ? 'selected' : ''}" 
                  onclick="StatsView.selectSetFromPicker('${s.set_num}', '#${setNumShort} - ${s.name.replace(/'/g, "\\'")}')"
                  style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; transition:background 0.15s ease; ${isSel ? 'background:var(--accent-bg); border:1px solid rgba(227,0,11,0.2);' : ''}">
-                <img src="${img}" onload="UI.removeWhiteBackground(this)" style="width:32px; height:32px; object-fit:contain; border-radius:4px; flex-shrink:0; background:var(--bg-surface-muted);">
+                <img src="${img}" onload="window.removeWhiteBackground(this)" style="width:32px; height:32px; object-fit:contain; border-radius:4px; flex-shrink:0; background:var(--bg-surface-muted);">
                 <div style="flex:1; min-width:0;">
                     <div style="font-weight:600; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.name}</div>
                     <div style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--text-muted);">#${setNumShort} ${s.theme_name ? '• ' + s.theme_name : ''}</div>
@@ -994,7 +994,7 @@ const StatsView = {
             <div class="bento-grid">
                 <!-- Single Set Header Hero -->
                 <div class="bento-card bento-col-12" style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                    <img src="${setHistory.setImgUrl}" onload="UI.removeWhiteBackground(this)" style="width:100px; height:100px; object-fit:contain; border-radius:12px; background:var(--bg-surface-muted); padding:10px;">
+                    <img src="${setHistory.setImgUrl}" onload="window.removeWhiteBackground(this)" style="width:100px; height:100px; object-fit:contain; border-radius:12px; background:var(--bg-surface-muted); padding:10px;">
                     <div style="flex:1;">
                         <div style="font-family:'IBM Plex Mono',monospace; font-size:0.85rem; color:var(--text-muted);">#${setId.split('-')[0]}</div>
                         <h3 style="font-size:1.4rem; font-family:'Space Grotesk',sans-serif; font-weight:700;">${setHistory.name}</h3>

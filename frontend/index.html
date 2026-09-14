@@ -28,6 +28,16 @@
     <link rel="stylesheet" href="css/style.css?v=44">
     <link rel="stylesheet" href="css/components.css?v=44">
     
+    <!-- Early Global UI Initialization (Prevents inline onload ReferenceErrors) -->
+    <script>
+        window.UI = window.UI || {};
+        window.removeWhiteBackground = function(img) {
+            if (window.UI && typeof window.UI.removeWhiteBackground === 'function') {
+                window.UI.removeWhiteBackground(img);
+            }
+        };
+    </script>
+
     <!-- Theme Detection Script (Run immediately) -->
     <script src="js/theme.js"></script>
 
