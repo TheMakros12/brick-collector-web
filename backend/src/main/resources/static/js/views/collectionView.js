@@ -251,6 +251,28 @@ const CollectionView = {
         const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
         const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
 
+        const logoUrl = window.location.origin + '/Lego.webp';
+        const logoBase64 = (await UI.urlToBase64(logoUrl, 1500)) || logoUrl;
+
+        const itemsWithImages = await Promise.all(items.map(async (item) => {
+            const proxyUrl = API.getProxyImageUrl(item.set_img_url);
+            const b64 = await UI.urlToBase64(proxyUrl, 1800);
+            return {
+                ...item,
+                renderImg: b64 || proxyUrl
+            };
+        }));
+
+        const wrapper = document.createElement('div');
+        wrapper.style.position = "fixed";
+        wrapper.style.top = "0px";
+        wrapper.style.left = "0px";
+        wrapper.style.width = "700px";
+        wrapper.style.zIndex = "-999999";
+        wrapper.style.opacity = "1";
+        wrapper.style.pointerEvents = "none";
+        wrapper.style.backgroundColor = "#FFFFFF";
+
         const container = document.createElement('div');
         container.id = "pdf-export-container";
         container.style.width = "650px";
@@ -258,21 +280,14 @@ const CollectionView = {
         container.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
         container.style.backgroundColor = "#FFFFFF";
         container.style.color = "#111827";
-        container.style.position = "fixed";
-        container.style.left = "0px";
-        container.style.top = "0px";
-        container.style.zIndex = "-9999";
-        container.style.opacity = "1";
-        container.style.pointerEvents = "none";
         container.style.boxSizing = "border-box";
-        document.body.appendChild(container);
-
-        const logoUrl = window.location.origin + '/Lego.webp';
+        wrapper.appendChild(container);
+        document.body.appendChild(wrapper);
 
         const headerHtml = `
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E5E7EB; padding-bottom: 16px; margin-bottom: 20px; width: 100%; box-sizing: border-box;">
                 <div style="display: flex; align-items: center; gap: 14px;">
-                    <img src="${logoUrl}" alt="LEGO Logo" crossorigin="anonymous" style="width: 46px; height: 46px; border-radius: 10px; object-fit: contain; flex-shrink: 0; box-shadow: 0 3px 8px rgba(227,0,11,0.2);">
+                    <img src="${logoBase64}" alt="LEGO Logo" style="width: 46px; height: 46px; border-radius: 10px; object-fit: contain; flex-shrink: 0; box-shadow: 0 3px 8px rgba(227,0,11,0.2);">
                     <div>
                         <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.4px;">
                             ${isCol ? 'INFORME DE COLECCIÓN LEGO®' : 'MI LISTA DE DESEOS LEGO®'}
@@ -317,16 +332,15 @@ const CollectionView = {
             </div>
         `;
 
-        const itemsHtml = items.map(i => {
+        const itemsHtml = itemsWithImages.map(i => {
             const setIdShort = i.set_num.split('-')[0];
             const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
-            const proxyImg = API.getProxyImageUrl(i.set_img_url);
 
             if (isCol) {
                 return `
                 <div style="display: flex; align-items: center; padding: 16px 20px; margin-bottom: 12px; border: 1px solid #E5E7EB; border-radius: 14px; background: #FFFFFF; page-break-inside: avoid; box-shadow: 0 2px 5px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
                     <div style="width: 90px; height: 90px; flex-shrink: 0; background: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 8px; margin-right: 18px; box-sizing: border-box;">
-                        <img src="${proxyImg}" crossorigin="anonymous" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img src="${i.renderImg}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                     </div>
                     <div style="flex: 1; min-width: 0; margin-right: 16px;">
                         <div style="display: inline-block; background: #F3F4F6; color: #374151; font-family: 'Space Grotesk', sans-serif; font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; margin-bottom: 6px;">
@@ -355,7 +369,7 @@ const CollectionView = {
                 return `
                 <div style="display: flex; align-items: center; padding: 16px 20px; margin-bottom: 12px; border: 1px solid #E5E7EB; border-radius: 14px; background: #FFFFFF; page-break-inside: avoid; box-shadow: 0 2px 5px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
                     <div style="width: 90px; height: 90px; flex-shrink: 0; background: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 8px; margin-right: 18px; box-sizing: border-box;">
-                        <img src="${proxyImg}" crossorigin="anonymous" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img src="${i.renderImg}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                     </div>
                     <div style="flex: 1; min-width: 0; margin-right: 16px;">
                         <div style="display: inline-block; background: #FEE2E2; color: #E3000B; font-family: 'Space Grotesk', sans-serif; font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; margin-bottom: 6px;">
@@ -407,12 +421,6 @@ const CollectionView = {
         };
 
         try {
-            const imgs = Array.from(container.querySelectorAll('img'));
-            await Promise.all(imgs.map(img => {
-                if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
-                return new Promise(resolve => {
-                    img.onload = resolve;
-                    img.onerror = resolve;
                     setTimeout(resolve, 3000);
                 });
             }));

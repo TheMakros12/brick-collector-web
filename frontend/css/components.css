@@ -1873,3 +1873,106 @@ table img {
 [data-theme="dark"] .stats-set-option-item:hover {
     background: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* Responsive Search View Adjustments for Mobile & PWA */
+.search-toolbar-container {
+    padding: 16px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+}
+
+.search-form-layout {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.search-input-wrap {
+    margin-bottom: 0 !important;
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.search-input-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-input-element {
+    padding-left: 50px !important;
+    padding-right: 42px !important;
+    font-size: 1.05rem !important;
+    height: 52px !important;
+    border-radius: 14px !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.search-input-clear-btn {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-submit-button {
+    height: 52px !important;
+    border-radius: 14px !important;
+    padding: 0 24px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+    .search-toolbar-container {
+        padding: 12px;
+    }
+    .search-form-layout {
+        gap: 8px;
+    }
+    .search-submit-button {
+        padding: 0 14px !important;
+        font-size: 0.92rem !important;
+    }
+    .search-input-element {
+        font-size: 0.95rem !important;
+        padding-left: 40px !important;
+        padding-right: 36px !important;
+    }
+    .search-input-icon {
+        left: 12px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (max-width: 380px) {
+    .search-submit-button span {
+        display: none;
+    }
+    .search-submit-button {
+        padding: 0 14px !important;
+    }
+}

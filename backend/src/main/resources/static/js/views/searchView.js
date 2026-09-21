@@ -4,13 +4,13 @@ const SearchView = {
             <div class="view-container">
                 <!-- Header Title Bar -->
                 <div class="page-header">
-                    <div class="page-header-title-wrap">
+                    <div class="page-header-title-wrap" style="flex-wrap: wrap; gap: 8px;">
                         <div class="page-header-icon" style="background: linear-gradient(135deg, #00C6FF, #0072FF);">
                             <i data-lucide="search" style="width: 26px; height: 26px;"></i>
                         </div>
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700;">Buscar Set LEGO®</h2>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700; margin: 0;">Buscar Set LEGO®</h2>
                                 <span class="page-header-badge" style="color:#0072FF; background:rgba(0,114,255,0.1); border-color:rgba(0,114,255,0.2);">🎯 Búsqueda por ID</span>
                             </div>
                             <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 2px;">
@@ -21,15 +21,15 @@ const SearchView = {
                 </div>
 
                 <!-- Main Direct Search Bar -->
-                <div class="toolbar-container" style="padding: 16px;">
-                    <form onsubmit="event.preventDefault(); SearchView.performSearch();" style="display: flex; gap: 10px; width: 100%;">
-                        <div class="input-group" style="margin-bottom: 0; position: relative; flex: 1;">
-                            <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; color: var(--text-muted); pointer-events: none;"></i>
-                            <input type="text" id="search-input" class="input-field" style="padding-left: 50px; padding-right: 42px; font-size: 1.05rem; height: 52px; border-radius: 14px;" placeholder="Escribe el ID del set (ej. 42172, 10307, 75375...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); SearchView.performSearch();}">
-                            ${App.searchState.query ? `<button type="button" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
+                <div class="toolbar-container search-toolbar-container">
+                    <form onsubmit="event.preventDefault(); SearchView.performSearch();" class="search-form-layout">
+                        <div class="input-group search-input-wrap">
+                            <i data-lucide="search" class="search-input-icon"></i>
+                            <input type="text" id="search-input" class="input-field search-input-element" placeholder="Escribe el ID del set (ej. 42172, 10307...)" value="${App.searchState.query || ''}" oninput="SearchView.onInputChange(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); SearchView.performSearch();}">
+                            ${App.searchState.query ? `<button type="button" class="search-input-clear-btn" onclick="SearchView.clearSearch()"><i data-lucide="x-circle" style="width: 20px; height: 20px;"></i></button>` : ''}
                         </div>
-                        <button type="submit" class="btn btn-primary" style="height: 52px; border-radius: 14px; padding: 0 24px; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="search" style="width: 18px; height: 18px;"></i> Buscar
+                        <button type="submit" class="btn btn-primary search-submit-button">
+                            <i data-lucide="search" style="width: 18px; height: 18px;"></i> <span>Buscar</span>
                         </button>
                     </form>
                 </div>

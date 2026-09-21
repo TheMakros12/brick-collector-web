@@ -1,4 +1,36 @@
 var UI = window.UI = Object.assign(window.UI || {}, {
+    urlToBase64(url, timeoutMs = 2000) {
+        return new Promise((resolve) => {
+            if (!url) return resolve(null);
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            let timer = setTimeout(() => {
+                img.src = '';
+                resolve(null);
+            }, timeoutMs);
+
+            img.onload = () => {
+                clearTimeout(timer);
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width || 120;
+                    canvas.height = img.naturalHeight || img.height || 120;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const dataURL = canvas.toDataURL('image/png');
+                    resolve(dataURL);
+                } catch (e) {
+                    resolve(null);
+                }
+            };
+            img.onerror = () => {
+                clearTimeout(timer);
+                resolve(null);
+            };
+            img.src = url;
+        });
+    },
+
     // Recorte automático de fondo blanco mediante Flood-Fill de Canvas.
     // Genera una silueta PNG con fondo 100% transparente sin alterar los colores reales de la foto.
     removeWhiteBackground(img) {
