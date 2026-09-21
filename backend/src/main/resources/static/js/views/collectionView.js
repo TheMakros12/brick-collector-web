@@ -103,7 +103,7 @@ const CollectionView = {
                             ${themeChipsHtml}
                         </div>
                         <div class="filter-chips-scroll">
-                            <button class="category-chip ${App.collectionState.retiredFilter === 'all' ? 'active' : ''}" data-cat="all" onclick="CollectionView.updateCollectionRetiredFilter('all')">Todos</button>
+                            <button class="category-chip ${App.collectionState.retiredFilter === 'all' ? 'active' : ''}" data-ret="all" onclick="CollectionView.updateCollectionRetiredFilter('all')">Todos</button>
                             <button class="category-chip ${App.collectionState.retiredFilter === 'retired' ? 'active' : ''}" data-ret="retired" onclick="CollectionView.updateCollectionRetiredFilter('retired')">🔒 Descatalogados (EOL)</button>
                             <button class="category-chip ${App.collectionState.retiredFilter === 'active' ? 'active' : ''}" data-ret="active" onclick="CollectionView.updateCollectionRetiredFilter('active')">🛒 En Catálogo</button>
                         </div>
@@ -421,16 +421,11 @@ const CollectionView = {
         };
 
         try {
-                    setTimeout(resolve, 3000);
-                });
-            }));
-
             let shared = false;
             if (navigator.share && navigator.canShare) {
                 try {
                     const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
                     const pdfFile = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
-
                     if (navigator.canShare({ files: [pdfFile] })) {
                         await navigator.share({
                             files: [pdfFile],
@@ -441,7 +436,7 @@ const CollectionView = {
                         UI.showToast("PDF compartido con éxito.", "success");
                     }
                 } catch (shareErr) {
-                    console.log("Manejando descarga directa de PDF...");
+                    console.log("Alternando a descarga directa...", shareErr);
                 }
             }
 
@@ -453,8 +448,8 @@ const CollectionView = {
             console.error("Error generando PDF:", e);
             UI.showToast("Error al procesar el PDF.", "error");
         } finally {
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
+            if (wrapper && wrapper.parentNode) {
+                wrapper.parentNode.removeChild(wrapper);
             }
         }
     }

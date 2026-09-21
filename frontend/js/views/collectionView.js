@@ -421,9 +421,29 @@ const CollectionView = {
         };
 
         try {
-            const worker = html2pdf().set(opt).from(container);
-            await worker.save();
-            UI.showToast("PDF generado y descargado con éxito.", "success");
+            let shared = false;
+            if (navigator.share && navigator.canShare) {
+                try {
+                    const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
+                    const pdfFile = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+                    if (navigator.canShare({ files: [pdfFile] })) {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: isCol ? 'Mi Colección LEGO' : 'Mi Lista de Deseos LEGO',
+                            text: isCol ? 'Te comparto mi informe de Colección LEGO® en PDF.' : 'Te comparto mi Lista de Deseos LEGO® en PDF.'
+                        });
+                        shared = true;
+                        UI.showToast("PDF compartido con éxito.", "success");
+                    }
+                } catch (shareErr) {
+                    console.log("Alternando a descarga directa...", shareErr);
+                }
+            }
+
+            if (!shared) {
+                await html2pdf().set(opt).from(container).save();
+                UI.showToast("PDF generado y descargado con éxito.", "success");
+            }
         } catch (e) {
             console.error("Error generando PDF:", e);
             UI.showToast("Error al procesar el PDF.", "error");
