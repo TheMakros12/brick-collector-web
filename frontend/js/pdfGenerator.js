@@ -24,8 +24,65 @@ var PDFGenerator = window.PDFGenerator = {
         return this._placeholderCache;
     },
 
+    // Agrupa los sets por Categoría/Temática y los ordena en orden ASCENDENTE por número de Set (ID)
+    groupAndSortItems(items) {
+        const getCategory = (item) => {
+            if (item.theme_name && item.theme_name.trim()) return item.theme_name.trim();
+            if (window.API && API.getThemeName) {
+                const name = API.getThemeName(item.theme_id);
+                if (name && !name.startsWith('Tema ')) return name;
+            }
+            return 'Otros / General';
+        };
+
+        const parseSetId = (setNum) => {
+            if (!setNum) return 0;
+            const numPart = String(setNum).split('-')[0];
+            return parseInt(numPart, 10) || 0;
+        };
+
+        const groups = {};
+        items.forEach((item) => {
+            const cat = getCategory(item);
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(item);
+        });
+
+        const sortedCategories = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+        const result = [];
+        sortedCategories.forEach((catName) => {
+            const sortedSets = groups[catName].sort((a, b) => parseSetId(a.set_num) - parseSetId(b.set_num));
+            result.push({
+                categoryName: catName,
+                items: sortedSets
+            });
+        });
+
+        return result;
+    },
+
+    // Precarga fotos en lotes de 5 para evitar la saturación de conexiones HTTP del navegador
+    async preloadImagesInBatches(items, batchSize = 5) {
+        const placeholder = this.getPlaceholderImage();
+        const results = [];
+        for (let i = 0; i < items.length; i += batchSize) {
+            const batch = items.slice(i, i + batchSize);
+            const processedBatch = await Promise.all(batch.map(async (item) => {
+                const proxyUrl = API.getProxyImageUrl(item.set_img_url);
+                const b64 = await UI.urlToBase64(proxyUrl, 6000);
+                return {
+                    ...item,
+                    renderImg: (b64 && b64.startsWith('data:image/')) ? b64 : placeholder
+                };
+            }));
+            results.push(...processedBatch);
+        }
+        return results;
+    },
+
     // Constructor aislado para el Informe de Colección
-    buildCollectionDoc(items, totalPieces, totalValue, logoBase64, dateString) {
+    buildCollectionDoc(groupedCategories, totalSetsCount, totalPieces, totalValue, logoBase64, dateString) {
         const placeholder = this.getPlaceholderImage();
         const content = [];
 
@@ -43,7 +100,7 @@ var PDFGenerator = window.PDFGenerator = {
                     width: '*',
                     stack: [
                         { text: 'INFORME DE COLECCIÓN LEGO®', style: 'headerTitle' },
-                        { text: 'Inventario Consolidado de Piezas y Sets', style: 'headerSubtitle' }
+                        { text: 'Inventario Consolidado por Categorías y Sets', style: 'headerSubtitle' }
                     ]
                 },
                 {
@@ -74,7 +131,7 @@ var PDFGenerator = window.PDFGenerator = {
                         margin: [8, 8, 8, 8],
                         stack: [
                             { text: 'TOTAL SETS', style: 'kpiLabel' },
-                            { text: String(items.length), style: 'kpiValueRed' }
+                            { text: String(totalSetsCount), style: 'kpiValueRed' }
                         ]
                     },
                     {
@@ -103,83 +160,112 @@ var PDFGenerator = window.PDFGenerator = {
             }
         });
 
-        // 3. Listado por Set (Colección)
-        items.forEach((i) => {
-            const setIdShort = i.set_num.split('-')[0];
-            const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
-            const partsVal = (i.num_parts || 0).toLocaleString('es');
-            const imgSource = i.renderImg || placeholder;
-
-            // Salvaguarda: escala de fuente si el nombre es excepcionalmente largo (>50 caracteres), SIN truncar jamás
-            const titleFontSize = i.name.length > 70 ? 9.5 : (i.name.length > 50 ? 10.5 : 11.5);
-
+        // 3. Listado Agrupado por Categoría (Colección)
+        groupedCategories.forEach((group) => {
+            // Encabezado de Categoría / Temática
             content.push({
-                margin: [0, 0, 0, 8],
+                margin: [0, 10, 0, 6],
                 unbreakable: true,
                 table: {
-                    dontBreakRows: true,
-                    widths: [54, '*', 'auto'],
+                    widths: ['*'],
                     body: [[
-                        // Columna 1: Imagen del Set (Escalado fit: [50, 50])
                         {
-                            margin: [2, 2, 6, 2],
-                            alignment: 'center',
-                            valign: 'middle',
-                            image: imgSource,
-                            fit: [50, 50]
-                        },
-                        // Columna 2: Badge #Set + Nombre oficial completo (text wrap)
-                        {
-                            margin: [4, 2, 8, 2],
-                            stack: [
+                            fillColor: '#F3F4F6',
+                            margin: [8, 5, 8, 5],
+                            columns: [
                                 {
-                                    text: '#' + setIdShort,
-                                    style: 'badgeCollection',
-                                    margin: [0, 0, 0, 4]
+                                    text: group.categoryName.toUpperCase(),
+                                    fontSize: 10,
+                                    bold: true,
+                                    color: '#E3000B'
                                 },
                                 {
-                                    text: i.name,
-                                    fontSize: titleFontSize,
+                                    text: group.items.length + (group.items.length === 1 ? ' set' : ' sets'),
+                                    fontSize: 9,
                                     bold: true,
-                                    color: '#111827',
-                                    lineHeight: 1.25
+                                    color: '#6B7280',
+                                    alignment: 'right'
                                 }
                             ]
-                        },
-                        // Columna 3: Piezas + Precio / PVP
-                        {
-                            margin: [4, 2, 4, 2],
-                            alignment: 'right',
-                            table: {
-                                widths: ['auto', 'auto'],
-                                body: [[
-                                    {
-                                        margin: [0, 0, 12, 0],
-                                        alignment: 'right',
-                                        stack: [
-                                            { text: 'PIEZAS', style: 'itemLabel' },
-                                            { text: partsVal + ' pcs', style: 'itemValueParts' }
-                                        ]
-                                    },
-                                    {
-                                        alignment: 'right',
-                                        stack: [
-                                            { text: 'PRECIO / PVP', style: 'itemLabel' },
-                                            { text: priceVal + ' €', style: 'itemValuePrice' }
-                                        ]
-                                    }
-                                ]]
-                            },
-                            layout: 'noBorders'
                         }
                     ]]
                 },
-                layout: {
-                    hLineWidth: () => 1,
-                    vLineWidth: () => 1,
-                    hLineColor: () => '#E5E7EB',
-                    vLineColor: () => '#E5E7EB'
-                }
+                layout: 'noBorders'
+            });
+
+            // Fichas de Sets ordenadas en orden ascendente por Set ID
+            group.items.forEach((i) => {
+                const setIdShort = i.set_num.split('-')[0];
+                const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
+                const partsVal = (i.num_parts || 0).toLocaleString('es');
+                const imgSource = i.renderImg || placeholder;
+                const titleFontSize = i.name.length > 70 ? 9.5 : (i.name.length > 50 ? 10.5 : 11.5);
+
+                content.push({
+                    margin: [0, 0, 0, 6],
+                    unbreakable: true,
+                    table: {
+                        dontBreakRows: true,
+                        widths: [54, '*', 'auto'],
+                        body: [[
+                            {
+                                margin: [2, 2, 6, 2],
+                                alignment: 'center',
+                                valign: 'middle',
+                                image: imgSource,
+                                fit: [50, 50]
+                            },
+                            {
+                                margin: [4, 2, 8, 2],
+                                stack: [
+                                    {
+                                        text: '#' + setIdShort,
+                                        style: 'badgeCollection',
+                                        margin: [0, 0, 0, 3]
+                                    },
+                                    {
+                                        text: i.name,
+                                        fontSize: titleFontSize,
+                                        bold: true,
+                                        color: '#111827',
+                                        lineHeight: 1.25
+                                    }
+                                ]
+                            },
+                            {
+                                margin: [4, 2, 4, 2],
+                                alignment: 'right',
+                                table: {
+                                    widths: ['auto', 'auto'],
+                                    body: [[
+                                        {
+                                            margin: [0, 0, 12, 0],
+                                            alignment: 'right',
+                                            stack: [
+                                                { text: 'PIEZAS', style: 'itemLabel' },
+                                                { text: partsVal + ' pcs', style: 'itemValueParts' }
+                                            ]
+                                        },
+                                        {
+                                            alignment: 'right',
+                                            stack: [
+                                                { text: 'PRECIO / PVP', style: 'itemLabel' },
+                                                { text: priceVal + ' €', style: 'itemValuePrice' }
+                                            ]
+                                        }
+                                    ]]
+                                },
+                                layout: 'noBorders'
+                            }
+                        ]]
+                    },
+                    layout: {
+                        hLineWidth: () => 1,
+                        vLineWidth: () => 1,
+                        hLineColor: () => '#E5E7EB',
+                        vLineColor: () => '#E5E7EB'
+                    }
+                });
             });
         });
 
@@ -211,7 +297,7 @@ var PDFGenerator = window.PDFGenerator = {
     },
 
     // Constructor aislado para la Lista de Deseos
-    buildWishlistDoc(items, totalValue, logoBase64, dateString) {
+    buildWishlistDoc(groupedCategories, totalSetsCount, totalValue, logoBase64, dateString) {
         const placeholder = this.getPlaceholderImage();
         const content = [];
 
@@ -229,7 +315,7 @@ var PDFGenerator = window.PDFGenerator = {
                     width: '*',
                     stack: [
                         { text: 'MI LISTA DE DESEOS LEGO®', style: 'headerTitle' },
-                        { text: 'Ideas de Regalo y Sets Deseados', style: 'headerSubtitle' }
+                        { text: 'Ideas de Regalo y Sets Deseados por Categorías', style: 'headerSubtitle' }
                     ]
                 },
                 {
@@ -250,7 +336,7 @@ var PDFGenerator = window.PDFGenerator = {
         });
 
         // 2. Tarjetas KPIs (2 columnas)
-        const setsText = items.length + ' ' + (items.length !== 1 ? 'sets' : 'set');
+        const setsText = totalSetsCount + ' ' + (totalSetsCount !== 1 ? 'sets' : 'set');
         content.push({
             margin: [0, 0, 0, 18],
             table: {
@@ -282,65 +368,93 @@ var PDFGenerator = window.PDFGenerator = {
             }
         });
 
-        // 3. Listado por Set (Wishlist)
-        items.forEach((i) => {
-            const setIdShort = i.set_num.split('-')[0];
-            const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
-            const imgSource = i.renderImg || placeholder;
-
-            const titleFontSize = i.name.length > 70 ? 9.5 : (i.name.length > 50 ? 10.5 : 11.5);
-
+        // 3. Listado Agrupado por Categoría (Wishlist)
+        groupedCategories.forEach((group) => {
             content.push({
-                margin: [0, 0, 0, 8],
+                margin: [0, 10, 0, 6],
                 unbreakable: true,
                 table: {
-                    dontBreakRows: true,
-                    widths: [54, '*', 'auto'],
+                    widths: ['*'],
                     body: [[
-                        // Columna 1: Imagen del Set (Escalado fit: [50, 50])
                         {
-                            margin: [2, 2, 6, 2],
-                            alignment: 'center',
-                            valign: 'middle',
-                            image: imgSource,
-                            fit: [50, 50]
-                        },
-                        // Columna 2: Badge Rojo #Set + Nombre oficial completo
-                        {
-                            margin: [4, 2, 8, 2],
-                            stack: [
+                            fillColor: '#F3F4F6',
+                            margin: [8, 5, 8, 5],
+                            columns: [
                                 {
-                                    text: '#' + setIdShort,
-                                    style: 'badgeWishlist',
-                                    margin: [0, 0, 0, 4]
+                                    text: group.categoryName.toUpperCase(),
+                                    fontSize: 10,
+                                    bold: true,
+                                    color: '#E3000B'
                                 },
                                 {
-                                    text: i.name,
-                                    fontSize: titleFontSize,
+                                    text: group.items.length + (group.items.length === 1 ? ' set' : ' sets'),
+                                    fontSize: 9,
                                     bold: true,
-                                    color: '#111827',
-                                    lineHeight: 1.25
+                                    color: '#6B7280',
+                                    alignment: 'right'
                                 }
-                            ]
-                        },
-                        // Columna 3: Recuadro Destacado PVP Recomendado (Verde)
-                        {
-                            margin: [2, 2, 2, 2],
-                            fillColor: '#F0FDF4',
-                            alignment: 'right',
-                            stack: [
-                                { text: 'P.V.P. RECOMENDADO', style: 'wishlistPvpLabel' },
-                                { text: priceVal + ' €', style: 'wishlistPvpValue' }
                             ]
                         }
                     ]]
                 },
-                layout: {
-                    hLineWidth: () => 1,
-                    vLineWidth: () => 1,
-                    hLineColor: () => '#E5E7EB',
-                    vLineColor: () => '#E5E7EB'
-                }
+                layout: 'noBorders'
+            });
+
+            group.items.forEach((i) => {
+                const setIdShort = i.set_num.split('-')[0];
+                const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
+                const imgSource = i.renderImg || placeholder;
+                const titleFontSize = i.name.length > 70 ? 9.5 : (i.name.length > 50 ? 10.5 : 11.5);
+
+                content.push({
+                    margin: [0, 0, 0, 6],
+                    unbreakable: true,
+                    table: {
+                        dontBreakRows: true,
+                        widths: [54, '*', 'auto'],
+                        body: [[
+                            {
+                                margin: [2, 2, 6, 2],
+                                alignment: 'center',
+                                valign: 'middle',
+                                image: imgSource,
+                                fit: [50, 50]
+                            },
+                            {
+                                margin: [4, 2, 8, 2],
+                                stack: [
+                                    {
+                                        text: '#' + setIdShort,
+                                        style: 'badgeWishlist',
+                                        margin: [0, 0, 0, 3]
+                                    },
+                                    {
+                                        text: i.name,
+                                        fontSize: titleFontSize,
+                                        bold: true,
+                                        color: '#111827',
+                                        lineHeight: 1.25
+                                    }
+                                ]
+                            },
+                            {
+                                margin: [2, 2, 2, 2],
+                                fillColor: '#F0FDF4',
+                                alignment: 'right',
+                                stack: [
+                                    { text: 'P.V.P. RECOMENDADO', style: 'wishlistPvpLabel' },
+                                    { text: priceVal + ' €', style: 'wishlistPvpValue' }
+                                ]
+                            }
+                        ]]
+                    },
+                    layout: {
+                        hLineWidth: () => 1,
+                        vLineWidth: () => 1,
+                        hLineColor: () => '#E5E7EB',
+                        vLineColor: () => '#E5E7EB'
+                    }
+                });
             });
         });
 
@@ -466,18 +580,18 @@ var PDFGenerator = window.PDFGenerator = {
         }
 
         const isCol = App.collectionState.tab === 'collection';
-        const items = isCol ? Storage.getCollection() : Storage.getWishlist();
-        if (!items || items.length === 0) {
+        const rawItems = isCol ? Storage.getCollection() : Storage.getWishlist();
+        if (!rawItems || rawItems.length === 0) {
             return UI.showToast("La lista está vacía.", "error");
         }
 
         UI.showToast("Generando informe PDF en alta definición...", "info");
 
         // Cálculo exacto de la lógica de datos original
-        const totalPieces = isCol ? items.reduce((sum, i) => sum + (i.num_parts || 0), 0) : 0;
+        const totalPieces = isCol ? rawItems.reduce((sum, i) => sum + (i.num_parts || 0), 0) : 0;
         const totalValue = isCol
-            ? items.reduce((sum, s) => sum + (s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0)), 0)
-            : items.reduce((sum, i) => sum + (i.retail_price || 0), 0);
+            ? rawItems.reduce((sum, s) => sum + (s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0)), 0)
+            : rawItems.reduce((sum, i) => sum + (i.retail_price || 0), 0);
 
         const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
         const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
@@ -487,19 +601,15 @@ var PDFGenerator = window.PDFGenerator = {
         const logoB64 = await UI.urlToBase64(logoUrl, 2000);
         const logoBase64 = (logoB64 && logoB64.startsWith('data:image/')) ? logoB64 : placeholder;
 
-        // Precarga de fotos de sets a Base64 en paralelo (timeout 3000ms por foto)
-        const itemsWithImages = await Promise.all(items.map(async (item) => {
-            const proxyUrl = API.getProxyImageUrl(item.set_img_url);
-            const b64 = await UI.urlToBase64(proxyUrl, 3000);
-            return {
-                ...item,
-                renderImg: (b64 && b64.startsWith('data:image/')) ? b64 : placeholder
-            };
-        }));
+        // Precarga de fotos de sets en LOTES DE 5 (evita la saturación del navegador)
+        const itemsWithImages = await this.preloadImagesInBatches(rawItems, 5);
+
+        // Agrupación por Categoría y Ordenación Ascendente por ID de Set (#XXXXX)
+        const groupedCategories = this.groupAndSortItems(itemsWithImages);
 
         const docDefinition = isCol
-            ? this.buildCollectionDoc(itemsWithImages, totalPieces, totalValue, logoBase64, dateString)
-            : this.buildWishlistDoc(itemsWithImages, totalValue, logoBase64, dateString);
+            ? this.buildCollectionDoc(groupedCategories, rawItems.length, totalPieces, totalValue, logoBase64, dateString)
+            : this.buildWishlistDoc(groupedCategories, rawItems.length, totalValue, logoBase64, dateString);
 
         const filename = isCol ? 'Lego_Collection_Report.pdf' : 'Lego_Wishlist_Report.pdf';
         const title = isCol ? 'Mi Colección LEGO' : 'Mi Lista de Deseos LEGO';
