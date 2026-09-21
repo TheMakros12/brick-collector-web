@@ -1,7 +1,14 @@
 var UI = window.UI = Object.assign(window.UI || {}, {
-    urlToBase64(url, timeoutMs = 2000) {
+    urlToBase64(url, timeoutMs = 3500) {
         return new Promise((resolve) => {
             if (!url) return resolve(null);
+            let fullUrl = url;
+            if (url.startsWith('/')) {
+                fullUrl = window.location.origin + url;
+            } else if (!url.startsWith('http')) {
+                fullUrl = window.location.origin + '/' + url;
+            }
+
             const img = new Image();
             img.crossOrigin = 'Anonymous';
             let timer = setTimeout(() => {
@@ -18,7 +25,7 @@ var UI = window.UI = Object.assign(window.UI || {}, {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
                     const dataURL = canvas.toDataURL('image/png');
-                    resolve(dataURL);
+                    resolve((dataURL && dataURL.startsWith('data:image/')) ? dataURL : null);
                 } catch (e) {
                     resolve(null);
                 }
@@ -27,7 +34,7 @@ var UI = window.UI = Object.assign(window.UI || {}, {
                 clearTimeout(timer);
                 resolve(null);
             };
-            img.src = url;
+            img.src = fullUrl;
         });
     },
 

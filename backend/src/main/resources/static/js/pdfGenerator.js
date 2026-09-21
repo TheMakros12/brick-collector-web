@@ -479,19 +479,18 @@ var PDFGenerator = window.PDFGenerator = {
             ? items.reduce((sum, s) => sum + (s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0)), 0)
             : items.reduce((sum, i) => sum + (i.retail_price || 0), 0);
 
-        const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
-        const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
-
+        const placeholder = this.getPlaceholderImage();
         const logoUrl = window.location.origin + '/Lego.webp';
-        const logoBase64 = (await UI.urlToBase64(logoUrl, 1500)) || logoUrl;
+        const logoB64 = await UI.urlToBase64(logoUrl, 2000);
+        const logoBase64 = (logoB64 && logoB64.startsWith('data:image/')) ? logoB64 : placeholder;
 
-        // Precarga de fotos de sets a Base64 en paralelo (timeout 1800ms por foto)
+        // Precarga de fotos de sets a Base64 en paralelo (timeout 3000ms por foto)
         const itemsWithImages = await Promise.all(items.map(async (item) => {
             const proxyUrl = API.getProxyImageUrl(item.set_img_url);
-            const b64 = await UI.urlToBase64(proxyUrl, 1800);
+            const b64 = await UI.urlToBase64(proxyUrl, 3000);
             return {
                 ...item,
-                renderImg: b64 || proxyUrl
+                renderImg: (b64 && b64.startsWith('data:image/')) ? b64 : placeholder
             };
         }));
 
