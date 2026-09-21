@@ -479,6 +479,9 @@ var PDFGenerator = window.PDFGenerator = {
             ? items.reduce((sum, s) => sum + (s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0)), 0)
             : items.reduce((sum, i) => sum + (i.retail_price || 0), 0);
 
+        const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+        const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
+
         const placeholder = this.getPlaceholderImage();
         const logoUrl = window.location.origin + '/Lego.webp';
         const logoB64 = await UI.urlToBase64(logoUrl, 2000);
