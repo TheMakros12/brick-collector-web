@@ -68,7 +68,7 @@ const StatsView = {
                     </div>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         ${col.length > 0 ? `
-                        <button class="btn btn-secondary" onclick="CollectionView.exportPDF()" style="display: flex; align-items: center; gap: 8px; border-radius: 12px;">
+                        <button class="btn btn-secondary" onclick="CollectionView.exportPDF('collection')" style="display: flex; align-items: center; gap: 8px; border-radius: 12px;">
                             <i data-lucide="send"></i> Enviar PDF
                         </button>` : ''}
                     </div>

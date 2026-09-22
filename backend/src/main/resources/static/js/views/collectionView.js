@@ -236,9 +236,9 @@ const CollectionView = {
             prompt("Copia este texto para compartir:", text);
         }
     },
-    async exportPDF() {
+    async exportPDF(type) {
         if (window.PDFGenerator) {
-            await window.PDFGenerator.generate();
+            await window.PDFGenerator.generate(type);
         } else {
             UI.showToast("El generador PDF no está disponible.", "error");
         }

@@ -1,3 +1,4 @@
+/* BrickCollector PDF Generator - Version 56 - Editorial Grid 3x3 & Stats Sync */
 var PDFGenerator = window.PDFGenerator = {
     // Genera un Data URL PNG neutro local de 50x50px como placeholder si una imagen falla
     getPlaceholderImage() {
@@ -219,7 +220,7 @@ var PDFGenerator = window.PDFGenerator = {
             margin: [0, 0, 0, 16]
         });
 
-        // 2. Tarjetas KPIs (3 columnas)
+        // 2. Tarjetas KPIs (3 columnas) - Sincronizadas exactamente con Estadísticas
         content.push({
             margin: [0, 0, 0, 18],
             table: {
@@ -551,20 +552,32 @@ var PDFGenerator = window.PDFGenerator = {
     },
 
     // Punto de entrada principal para generar el PDF
-    async generate() {
+    async generate(targetType) {
         if (typeof pdfMake === 'undefined') {
             return UI.showToast("No se pudo cargar la librería PDF (pdfmake). Revisa tu conexión.", "error");
         }
 
-        const isCol = App.collectionState.tab === 'collection';
+        // Determinar el tipo de informe a generar (Colección o Wishlist)
+        let isCol = true;
+        if (targetType === 'collection') {
+            isCol = true;
+        } else if (targetType === 'wishlist') {
+            isCol = false;
+        } else if (window.App && App.currentView === 'profile') {
+            // Desde la vista de Estadísticas/Perfil, SIEMPRE se genera el Informe de Colección
+            isCol = true;
+        } else if (window.App && App.collectionState) {
+            isCol = App.collectionState.tab !== 'wishlist';
+        }
+
         const rawItems = isCol ? Storage.getCollection() : Storage.getWishlist();
         if (!rawItems || rawItems.length === 0) {
-            return UI.showToast("La lista está vacía.", "error");
+            return UI.showToast(isCol ? "La colección está vacía." : "La lista de deseos está vacía.", "error");
         }
 
         UI.showToast("Generando informe PDF en alta definición...", "info");
 
-        // Obtener KPIs exactos sincronizados directamente con las estadísticas del backend
+        // Sincronizar KPIs exactos directamente con las estadísticas del backend (/api/statistics)
         let totalPieces = 0;
         let totalValue = 0;
 
@@ -573,10 +586,14 @@ var PDFGenerator = window.PDFGenerator = {
                 try {
                     const stats = await API.getStatistics();
                     if (stats) {
-                        totalPieces = stats.totalPieces || 0;
-                        totalValue = (stats.retailPriceTotal !== undefined && stats.retailPriceTotal !== null && stats.retailPriceTotal > 0)
-                            ? stats.retailPriceTotal
-                            : (stats.currentValueTotal || 0);
+                        if (stats.totalPieces) {
+                            totalPieces = stats.totalPieces;
+                        }
+                        if (stats.retailPriceTotal !== undefined && stats.retailPriceTotal !== null && stats.retailPriceTotal > 0) {
+                            totalValue = stats.retailPriceTotal;
+                        } else if (stats.currentValueTotal) {
+                            totalValue = stats.currentValueTotal;
+                        }
                     }
                 } catch (e) {
                     console.warn("No se pudieron obtener estadísticas del backend para los KPIs del PDF:", e);
@@ -645,6 +662,7 @@ var PDFGenerator = window.PDFGenerator = {
                     }
                 });
             } else {
+                // En escritorio se ejecuta SIEMPRE la descarga directa
                 pdfObj.download(filename);
                 UI.showToast("PDF generado y descargado con éxito.", "success");
             }
