@@ -24,11 +24,11 @@ var PDFGenerator = window.PDFGenerator = {
         return this._placeholderCache;
     },
 
-    // Detección de dispositivo móvil PWA / táctil estricto para evitar confundir portátiles táctiles de escritorio
+    // Detección estricta de dispositivo móvil PWA (excluye portátiles táctiles de escritorio)
     isMobileDevice() {
         const userAgent = navigator.userAgent || '';
         const isMobileUA = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-        return isMobileUA && (window.innerWidth <= 768 || 'ontouchstart' in window);
+        return isMobileUA && window.innerWidth <= 768;
     },
 
     // Agrupa los sets por Categoría/Temática y los ordena en orden ASCENDENTE por número de Set (ID)
@@ -564,11 +564,33 @@ var PDFGenerator = window.PDFGenerator = {
 
         UI.showToast("Generando informe PDF en alta definición...", "info");
 
-        // Cálculo exacto de la lógica de datos original
-        const totalPieces = isCol ? rawItems.reduce((sum, i) => sum + (i.num_parts || 0), 0) : 0;
-        const totalValue = isCol
-            ? rawItems.reduce((sum, s) => sum + (s.market_value || s.retail_price || 0), 0)
-            : rawItems.reduce((sum, i) => sum + (i.retail_price || 0), 0);
+        // Obtener KPIs exactos sincronizados directamente con las estadísticas del backend
+        let totalPieces = 0;
+        let totalValue = 0;
+
+        if (isCol) {
+            if (window.API && API.getStatistics) {
+                try {
+                    const stats = await API.getStatistics();
+                    if (stats) {
+                        totalPieces = stats.totalPieces || 0;
+                        totalValue = (stats.retailPriceTotal !== undefined && stats.retailPriceTotal !== null && stats.retailPriceTotal > 0)
+                            ? stats.retailPriceTotal
+                            : (stats.currentValueTotal || 0);
+                    }
+                } catch (e) {
+                    console.warn("No se pudieron obtener estadísticas del backend para los KPIs del PDF:", e);
+                }
+            }
+            if (!totalPieces) {
+                totalPieces = rawItems.reduce((sum, i) => sum + (i.num_parts || 0), 0);
+            }
+            if (!totalValue) {
+                totalValue = rawItems.reduce((sum, s) => sum + (s.market_value || s.retail_price || 0), 0);
+            }
+        } else {
+            totalValue = rawItems.reduce((sum, i) => sum + (i.retail_price || 0), 0);
+        }
 
         const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
         const dateString = new Date().toLocaleDateString('es-ES', dateOptions).toUpperCase();
@@ -595,7 +617,7 @@ var PDFGenerator = window.PDFGenerator = {
         try {
             const pdfObj = pdfMake.createPdf(docDefinition);
 
-            // Intentar compartir vía Web Share API ÚNICAMENTE en PWA / Móvil
+            // Intentar compartir vía Web Share API ÚNICAMENTE en PWA / Móvil estricto
             if (this.isMobileDevice() && navigator.share && navigator.canShare) {
                 pdfObj.getBlob(async (blob) => {
                     if (!blob) return pdfObj.download(filename);
