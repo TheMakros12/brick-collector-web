@@ -567,7 +567,7 @@ var PDFGenerator = window.PDFGenerator = {
         // Cálculo exacto de la lógica de datos original
         const totalPieces = isCol ? rawItems.reduce((sum, i) => sum + (i.num_parts || 0), 0) : 0;
         const totalValue = isCol
-            ? rawItems.reduce((sum, s) => sum + (s.purchaseDetails?.pricePaid ? parseFloat(s.purchaseDetails.pricePaid) : (s.retail_price || 0)), 0)
+            ? rawItems.reduce((sum, s) => sum + (s.market_value || s.retail_price || 0), 0)
             : rawItems.reduce((sum, i) => sum + (i.retail_price || 0), 0);
 
         const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };

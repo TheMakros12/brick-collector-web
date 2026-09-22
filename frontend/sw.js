@@ -1,4 +1,4 @@
-const CACHE_NAME = 'brickcollector-v53';
+const CACHE_NAME = 'brickcollector-v54';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -9,8 +9,10 @@ const ASSETS_TO_CACHE = [
     './js/api.js',
     './js/storage.js',
     './js/ui.js',
+    './js/pdfGenerator.js',
     './js/views/searchView.js',
     './js/views/collectionView.js',
+    './js/views/piecesView.js',
     './js/views/statsView.js',
     './assets/Lego.webp',
     './assets/stores/lego.webp',
