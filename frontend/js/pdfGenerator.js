@@ -24,6 +24,13 @@ var PDFGenerator = window.PDFGenerator = {
         return this._placeholderCache;
     },
 
+    // Detección de dispositivo móvil PWA / táctil estricto para evitar confundir portátiles táctiles de escritorio
+    isMobileDevice() {
+        const userAgent = navigator.userAgent || '';
+        const isMobileUA = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+        return isMobileUA && (window.innerWidth <= 768 || 'ontouchstart' in window);
+    },
+
     // Agrupa los sets por Categoría/Temática y los ordena en orden ASCENDENTE por número de Set (ID)
     groupAndSortItems(items) {
         const getCategory = (item) => {
@@ -81,7 +88,99 @@ var PDFGenerator = window.PDFGenerator = {
         return results;
     },
 
-    // Constructor aislado para el Informe de Colección
+    // Construye una fila de 3 tarjetas en grid con altura adaptativa unbreakable por fila
+    buildGridRow(itemsRow, type, placeholder) {
+        const cells = itemsRow.map((item) => {
+            if (!item) {
+                return { border: [false, false, false, false], text: '' };
+            }
+            const setIdShort = item.set_num ? item.set_num.split('-')[0] : '';
+            const priceVal = (item.retail_price || 0).toFixed(2).replace('.', ',');
+            const partsVal = (item.num_parts || 0).toLocaleString('es');
+            const imgSource = item.renderImg || placeholder;
+
+            const headerColumns = (type === 'collection') ? [
+                { text: '#' + setIdShort, style: 'badgeCollection', alignment: 'left' },
+                { text: partsVal + ' pcs', style: 'itemValueParts', alignment: 'right' }
+            ] : [
+                { text: '#' + setIdShort, style: 'badgeWishlist', alignment: 'left' }
+            ];
+
+            const priceSection = (type === 'collection') ? {
+                margin: [0, 4, 0, 0],
+                alignment: 'right',
+                stack: [
+                    { text: 'PRECIO / PVP', style: 'itemLabel' },
+                    { text: priceVal + ' €', style: 'itemValuePrice' }
+                ]
+            } : {
+                margin: [0, 4, 0, 0],
+                table: {
+                    widths: ['*'],
+                    body: [[
+                        {
+                            fillColor: '#ECFDF5',
+                            margin: [4, 4, 4, 4],
+                            alignment: 'center',
+                            stack: [
+                                { text: 'P.V.P. RECOMENDADO', style: 'wishlistPvpLabel' },
+                                { text: priceVal + ' €', style: 'wishlistPvpValue' }
+                            ]
+                        }
+                    ]]
+                },
+                layout: 'noBorders'
+            };
+
+            return {
+                fillColor: '#FFFFFF',
+                margin: [6, 8, 6, 8],
+                stack: [
+                    {
+                        columns: headerColumns,
+                        margin: [0, 0, 0, 6]
+                    },
+                    {
+                        margin: [0, 2, 0, 8],
+                        alignment: 'center',
+                        image: imgSource,
+                        fit: [140, 105]
+                    },
+                    {
+                        text: item.name || '',
+                        fontSize: 9.5,
+                        bold: true,
+                        color: '#1E293B',
+                        lineHeight: 1.25,
+                        margin: [0, 0, 0, 8]
+                    },
+                    priceSection
+                ]
+            };
+        });
+
+        // Rellenar con celdas invisibles sin borde si la fila tiene menos de 3 items
+        while (cells.length < 3) {
+            cells.push({ border: [false, false, false, false], text: '' });
+        }
+
+        return {
+            margin: [0, 0, 0, 10],
+            unbreakable: true,
+            table: {
+                widths: ['*', '*', '*'],
+                body: [cells]
+            },
+            layout: {
+                hLineWidth: () => 0.75,
+                vLineWidth: () => 0.75,
+                hLineColor: () => '#E2E8F0',
+                vLineColor: () => '#E2E8F0'
+            }
+        };
+    },
+
+    // Constructor aislado para el Informe de Colección en Grid Editorial (3x3)
     buildCollectionDoc(groupedCategories, totalSetsCount, totalPieces, totalValue, logoBase64, dateString) {
         const placeholder = this.getPlaceholderImage();
         const content = [];
@@ -160,12 +259,12 @@ var PDFGenerator = window.PDFGenerator = {
             }
         });
 
-        // 3. Listado Agrupado por Categoría (Colección)
+        // 3. Catálogo Editorial en Grid (3 Columnas) por Categoría
         groupedCategories.forEach((group) => {
-            // Encabezado de Categoría / Temática
             content.push({
-                margin: [0, 10, 0, 6],
+                margin: [0, 10, 0, 8],
                 unbreakable: true,
+                keepWithNext: true,
                 table: {
                     widths: ['*'],
                     body: [[
@@ -193,80 +292,10 @@ var PDFGenerator = window.PDFGenerator = {
                 layout: 'noBorders'
             });
 
-            // Fichas de Sets ordenadas en orden ascendente por Set ID
-            group.items.forEach((i) => {
-                const setIdShort = i.set_num.split('-')[0];
-                const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
-                const partsVal = (i.num_parts || 0).toLocaleString('es');
-                const imgSource = i.renderImg || placeholder;
-                const titleFontSize = i.name.length > 70 ? 9.5 : (i.name.length > 50 ? 10.5 : 11.5);
-
-                content.push({
-                    margin: [0, 0, 0, 6],
-                    unbreakable: true,
-                    table: {
-                        dontBreakRows: true,
-                        widths: [54, '*', 'auto'],
-                        body: [[
-                            {
-                                margin: [2, 2, 6, 2],
-                                alignment: 'center',
-                                valign: 'middle',
-                                image: imgSource,
-                                fit: [50, 50]
-                            },
-                            {
-                                margin: [4, 2, 8, 2],
-                                stack: [
-                                    {
-                                        text: '#' + setIdShort,
-                                        style: 'badgeCollection',
-                                        margin: [0, 0, 0, 3]
-                                    },
-                                    {
-                                        text: i.name,
-                                        fontSize: titleFontSize,
-                                        bold: true,
-                                        color: '#111827',
-                                        lineHeight: 1.25
-                                    }
-                                ]
-                            },
-                            {
-                                margin: [4, 2, 4, 2],
-                                alignment: 'right',
-                                table: {
-                                    widths: ['auto', 'auto'],
-                                    body: [[
-                                        {
-                                            margin: [0, 0, 12, 0],
-                                            alignment: 'right',
-                                            stack: [
-                                                { text: 'PIEZAS', style: 'itemLabel' },
-                                                { text: partsVal + ' pcs', style: 'itemValueParts' }
-                                            ]
-                                        },
-                                        {
-                                            alignment: 'right',
-                                            stack: [
-                                                { text: 'PRECIO / PVP', style: 'itemLabel' },
-                                                { text: priceVal + ' €', style: 'itemValuePrice' }
-                                            ]
-                                        }
-                                    ]]
-                                },
-                                layout: 'noBorders'
-                            }
-                        ]]
-                    },
-                    layout: {
-                        hLineWidth: () => 1,
-                        vLineWidth: () => 1,
-                        hLineColor: () => '#E5E7EB',
-                        vLineColor: () => '#E5E7EB'
-                    }
-                });
-            });
+            for (let i = 0; i < group.items.length; i += 3) {
+                const chunk = group.items.slice(i, i + 3);
+                content.push(this.buildGridRow(chunk, 'collection', placeholder));
+            }
         });
 
         return {
@@ -296,7 +325,7 @@ var PDFGenerator = window.PDFGenerator = {
         };
     },
 
-    // Constructor aislado para la Lista de Deseos
+    // Constructor aislado para la Lista de Deseos en Grid Editorial (3x3)
     buildWishlistDoc(groupedCategories, totalSetsCount, totalValue, logoBase64, dateString) {
         const placeholder = this.getPlaceholderImage();
         const content = [];
@@ -368,11 +397,12 @@ var PDFGenerator = window.PDFGenerator = {
             }
         });
 
-        // 3. Listado Agrupado por Categoría (Wishlist)
+        // 3. Catálogo Editorial en Grid (3 Columnas) por Categoría
         groupedCategories.forEach((group) => {
             content.push({
-                margin: [0, 10, 0, 6],
+                margin: [0, 10, 0, 8],
                 unbreakable: true,
+                keepWithNext: true,
                 table: {
                     widths: ['*'],
                     body: [[
@@ -400,62 +430,10 @@ var PDFGenerator = window.PDFGenerator = {
                 layout: 'noBorders'
             });
 
-            group.items.forEach((i) => {
-                const setIdShort = i.set_num.split('-')[0];
-                const priceVal = (i.retail_price || 0).toFixed(2).replace('.', ',');
-                const imgSource = i.renderImg || placeholder;
-                const titleFontSize = i.name.length > 70 ? 9.5 : (i.name.length > 50 ? 10.5 : 11.5);
-
-                content.push({
-                    margin: [0, 0, 0, 6],
-                    unbreakable: true,
-                    table: {
-                        dontBreakRows: true,
-                        widths: [54, '*', 'auto'],
-                        body: [[
-                            {
-                                margin: [2, 2, 6, 2],
-                                alignment: 'center',
-                                valign: 'middle',
-                                image: imgSource,
-                                fit: [50, 50]
-                            },
-                            {
-                                margin: [4, 2, 8, 2],
-                                stack: [
-                                    {
-                                        text: '#' + setIdShort,
-                                        style: 'badgeWishlist',
-                                        margin: [0, 0, 0, 3]
-                                    },
-                                    {
-                                        text: i.name,
-                                        fontSize: titleFontSize,
-                                        bold: true,
-                                        color: '#111827',
-                                        lineHeight: 1.25
-                                    }
-                                ]
-                            },
-                            {
-                                margin: [2, 2, 2, 2],
-                                fillColor: '#F0FDF4',
-                                alignment: 'right',
-                                stack: [
-                                    { text: 'P.V.P. RECOMENDADO', style: 'wishlistPvpLabel' },
-                                    { text: priceVal + ' €', style: 'wishlistPvpValue' }
-                                ]
-                            }
-                        ]]
-                    },
-                    layout: {
-                        hLineWidth: () => 1,
-                        vLineWidth: () => 1,
-                        hLineColor: () => '#E5E7EB',
-                        vLineColor: () => '#E5E7EB'
-                    }
-                });
-            });
+            for (let i = 0; i < group.items.length; i += 3) {
+                const chunk = group.items.slice(i, i + 3);
+                content.push(this.buildGridRow(chunk, 'wishlist', placeholder));
+            }
         });
 
         return {
@@ -535,7 +513,7 @@ var PDFGenerator = window.PDFGenerator = {
             badgeCollection: {
                 fontSize: 8.5,
                 bold: true,
-                color: '#374151'
+                color: '#1E293B'
             },
             badgeWishlist: {
                 fontSize: 8.5,
@@ -548,26 +526,25 @@ var PDFGenerator = window.PDFGenerator = {
                 color: '#9CA3AF'
             },
             itemValueParts: {
-                fontSize: 10,
+                fontSize: 8.5,
                 bold: true,
-                color: '#374151',
-                margin: [0, 1, 0, 0]
+                color: '#64748B'
             },
             itemValuePrice: {
-                fontSize: 11,
+                fontSize: 10.5,
                 bold: true,
-                color: '#10B981',
+                color: '#059669',
                 margin: [0, 1, 0, 0]
             },
             wishlistPvpLabel: {
                 fontSize: 7.5,
                 bold: true,
-                color: '#166534'
+                color: '#047857'
             },
             wishlistPvpValue: {
-                fontSize: 11,
+                fontSize: 10.5,
                 bold: true,
-                color: '#15803D',
+                color: '#047857',
                 margin: [0, 1, 0, 0]
             }
         };
@@ -618,8 +595,8 @@ var PDFGenerator = window.PDFGenerator = {
         try {
             const pdfObj = pdfMake.createPdf(docDefinition);
 
-            // Intentar compartir vía Web Share API si está disponible en PWA / Móvil
-            if (navigator.share && navigator.canShare) {
+            // Intentar compartir vía Web Share API ÚNICAMENTE en PWA / Móvil
+            if (this.isMobileDevice() && navigator.share && navigator.canShare) {
                 pdfObj.getBlob(async (blob) => {
                     if (!blob) return pdfObj.download(filename);
                     try {
@@ -636,7 +613,11 @@ var PDFGenerator = window.PDFGenerator = {
                             UI.showToast("PDF generado y descargado con éxito.", "success");
                         }
                     } catch (shareErr) {
-                        console.log("WebShare cancelado o no soportado, descargando archivo...", shareErr);
+                        if (shareErr && (shareErr.name === 'AbortError' || (shareErr.message && shareErr.message.toLowerCase().includes('abort')))) {
+                            console.log("WebShare cancelado voluntariamente por el usuario.");
+                            return;
+                        }
+                        console.log("WebShare error técnico, descargando archivo...", shareErr);
                         pdfObj.download(filename);
                         UI.showToast("PDF generado y descargado con éxito.", "success");
                     }
