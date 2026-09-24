@@ -1,5 +1,9 @@
 const API = {
-    API_BASE: '/api',
+    API_BASE: (typeof window !== 'undefined' && window.location && (
+        window.location.hostname.includes('vercel.app') ||
+        window.location.hostname.includes('netlify.app') ||
+        window.location.hostname.includes('pages.dev')
+    )) ? 'https://brick-collector-web.onrender.com/api' : '/api',
     
     CATEGORIES: [
         { id: 'technic', name: 'Technic', rebrickableId: 1 },
