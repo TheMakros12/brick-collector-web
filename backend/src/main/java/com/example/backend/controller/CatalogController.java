@@ -54,6 +54,7 @@ public class CatalogController {
             byte[] imageBytes = restTemplate.getForObject(url, byte[].class);
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.IMAGE_JPEG);
+            headers.setCacheControl(org.springframework.http.CacheControl.maxAge(365, java.util.concurrent.TimeUnit.DAYS).cachePublic().getHeaderValue());
             return new org.springframework.http.ResponseEntity<>(imageBytes, headers, org.springframework.http.HttpStatus.OK);
         } catch (Exception e) {
             return new org.springframework.http.ResponseEntity<>(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
